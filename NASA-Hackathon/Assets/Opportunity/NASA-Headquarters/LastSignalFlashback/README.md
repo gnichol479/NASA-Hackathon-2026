@@ -4,12 +4,12 @@ This scene is only the flashback development facility. It does not contain the M
 
 ## What the scene does
 
-- Fades into a NASA/JPL-inspired rover integration bay, with a temporary primitive rover scaffold and three marked sockets.
-- Uses the shared `XR Rig` prefab from the project XR setup commit. Its XRI controller rays, direct interactors, grab input, locomotion, snap-turn, and Editor XR Device Simulator are reused. The scene references the prefab by GUID, so moving its folder does not require changing the interactions.
-- Lets the player grab the solar panel, camera mast, and instrument arm and release each within its forgiving snap radius. Each successful snap gives a chime, updates the checklist, and presents its matching caption and optional narration clip.
-- Unlocks Systems Check only when all three parts are secured. A passing check reveals the optional final Opportunity model and unlocks Ready for Launch.
+- Fades into a NASA/JPL-inspired rover integration bay, using the updated Opportunity FBX as its chassis and three named component groups.
+- Uses the shared `XR Rig` prefab from the project XR setup commit. Its tracked camera, XRI controller rays and direct interactors, grab input, continuous movement, and snap-turn are reused. The scene references the prefab by GUID, so moving its folder does not require changing the interactions.
+- Starts with the solar arrays, camera mast, and instrument arm detached as grabbable FBX parts on the three numbered bench trays. The matching chassis mounts remain clearly marked. Each part snaps into its original mount with a chime, checklist update, caption, and optional narration clip.
+- Snapping a tray copy immediately turns its original FBX group back on at the authored rover transform and hides the copy. Systems Check unlocks only after all three parts are secured; a passing check unlocks Ready for Launch. Reset hides the original groups and returns the grabbable copies to their trays.
 - Emits `OpportunityFlashbackSceneController.LaunchHandoffRequested` and the Inspector **On Launch Handoff Requested** event. It does not load or implement the launch scene.
-- Keeps an empty `OPPORTUNITY MODEL ANCHOR` separate from the educational scaffold. Assign the imported model prefab to **Final Opportunity Model Prefab**; the existing interactions remain attached to the scaffold sockets.
+- Keeps `OPPORTUNITY MODEL ANCHOR` separate from the temporary primitive assembly scaffold. The scene assigns the updated FBX prefab there; the existing snap targets remain stable while detached copies are grabbed from the trays.
 
 The educational captions are short and factual:
 
@@ -28,10 +28,10 @@ The assignable narration clip slots are on the scene controller. Import ElevenLa
 1. Open `Scenes/Opportunity-Flashback.unity`. Its serialized controller already references the committed shared XR rig prefab by GUID.
 2. Add the scene to **File → Build Settings** for player builds. This section stays in `NASA-Headquarters`, so project-wide build settings are left to the integrator.
 3. In the Mars scene, call `OpportunityFlashbackEntry.EnterFlashback()` from the “See how I got here” action. Do not place that choice or Mars environment in this scene.
-4. When the final rover model arrives, assign its prefab to **Final Opportunity Model Prefab**. Keep the empty model anchor as the placement point.
+4. The updated FBX is assigned to **Final Opportunity Model Prefab**. Keep the model anchor as the placement point; another model can replace it later if it retains separate `panels_left`, `panels_right`, `mast`, and `arm_mount` groups.
 5. To connect launch, add the existing `NasaHack.LoadNextScene` (or the launch-flow component) as a listener on **On Launch Handoff Requested**. Set its destination there; this flashback only emits the handoff.
 6. Import Brian's generated clips and assign the five narration fields. Captions work without audio.
 
 ## Editor verification
 
-With the Unity project open, choose **Last Signal → Opportunity Flashback → Verify Assembly Flow**. It checks far-drop rejection, near-drop snapping, all three progression steps, initial launch lock, Systems Check gating, handoff emission, and reset/re-lock behavior in a temporary scene. The committed project also configures the XR Device Simulator for Editor interaction.
+With the Unity project open, choose **Last Signal → Opportunity Flashback → Verify Assembly Flow**. It checks the saved XR camera, ray/direct interactors, movement and snap-turn providers, imported model parts, immediate model restoration on each snap, near/far snap behavior, assembly progression, Systems Check and launch locks, handoff emission, and reset in a temporary scene. This deterministic check does not require a headset.
