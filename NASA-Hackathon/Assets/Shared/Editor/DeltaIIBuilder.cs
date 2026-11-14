@@ -19,8 +19,12 @@ namespace NasaHack.EditorTools
     //   Thor first stage: 2.44 dia, ~26 long, "Delta blue".  Nine GEM-46 boosters: 1.17 dia, 14.7 long, white.
     //   Interstage / Delta-K second stage: 2.44 dia.  9.5-ft composite fairing: 2.9 dia.  Overall height ~39.
     [InitializeOnLoad]
-    public static class DeltaIIBuilder
+    public static partial class DeltaIIBuilder
     {
+        // Bump when the builder changes, so Unity rebuilds the launch once on this machine.
+        const int BuildVersion = 4;
+        static string VersionKey => "NasaHack.DeltaII.BuildVersion." + Application.dataPath.GetHashCode();
+
         const string Root = "Assets/Opportunity/Launch";
         const string ScenePath = Root + "/Scenes/Opportunity-Launch.unity";
         const string MeshPath = Root + "/Models/DeltaII-Meshes.asset";
@@ -34,8 +38,10 @@ namespace NasaHack.EditorTools
         // Run once automatically when this script first compiles (if nothing is built yet).
         static DeltaIIBuilder()
         {
-            if (Application.isBatchMode || File.Exists(PrefabPath) || SessionState.GetBool("NasaHack.DeltaII.AutoRan", false)) return;
-            SessionState.SetBool("NasaHack.DeltaII.AutoRan", true);
+            string ranKey = "NasaHack.DeltaII.AutoRan.v" + BuildVersion;
+            if (Application.isBatchMode || SessionState.GetBool(ranKey, false)) return;
+            if (File.Exists(PrefabPath) && EditorPrefs.GetInt(VersionKey, 1) >= BuildVersion) return;
+            SessionState.SetBool(ranKey, true);
             EditorApplication.delayCall += AutoRun;
         }
 
@@ -67,13 +73,8 @@ namespace NasaHack.EditorTools
                 foreach (var name in new[] { "Launch Complex", "Launch Console", "Countdown Board" })
                     foreach (var g in scene.GetRootGameObjects().Where(g => g.name == name)) Object.DestroyImmediate(g);
 
-                // ---- Ground: bigger, and Florida rather than Mars.
-                var ground = scene.GetRootGameObjects().FirstOrDefault(g => g.name.StartsWith("Ground"));
-                if (ground)
-                {
-                    ground.transform.localScale = new Vector3(60f, 1f, 60f); // 600 m x 600 m
-                    ground.GetComponent<Renderer>().sharedMaterial = mats.Get("Cape Ground", new Color(0.42f, 0.47f, 0.33f), 0.1f);
-                }
+                // ---- Cape Canaveral surroundings, sky and post-processing (DeltaIIBuilder.Environment.cs)
+                BuildEnvironment(scene, mats, meshes);
 
                 // ---- Launch complex
                 var complex = new GameObject("Launch Complex");
@@ -110,6 +111,7 @@ namespace NasaHack.EditorTools
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
                 AssetDatabase.SaveAssets();
+                EditorPrefs.SetInt(VersionKey, BuildVersion);
                 Selection.activeGameObject = complex;
                 Debug.Log("[Delta II] Built the Delta II 7925H launch in " + ScenePath +
                           ". Press Play, then press the red LAUNCH button (or L on the keyboard).");
@@ -209,7 +211,7 @@ namespace NasaHack.EditorTools
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
             light.color = new Color(1f, 0.6f, 0.25f);
-            light.range = 80f;
+            light.range = 400f; // bright enough to light up the whole complex at night
             light.intensity = 0f;
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(rocket, PrefabPath);
@@ -283,7 +285,8 @@ namespace NasaHack.EditorTools
             main.startSpeed = new ParticleSystem.MinMaxCurve(8f, 18f);
             main.startSize = new ParticleSystem.MinMaxCurve(5f, 11f);
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            main.startColor = new Color(0.82f, 0.8f, 0.78f);
+            // Smoke is unlit, so at night it's tinted darker, with an orange glow where the flames light it.
+            main.startColor = NightLaunch ? new Color(0.5f, 0.45f, 0.43f) : new Color(0.82f, 0.8f, 0.78f);
             main.gravityModifier = -0.03f;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = 1500;
@@ -296,7 +299,9 @@ namespace NasaHack.EditorTools
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
             g.SetKeys(
-                new[] { new GradientColorKey(new Color(1f, 0.75f, 0.5f), 0f), new GradientColorKey(Color.white, 0.15f), new GradientColorKey(new Color(0.85f, 0.85f, 0.85f), 1f) },
+                NightLaunch
+                    ? new[] { new GradientColorKey(new Color(1f, 0.6f, 0.3f), 0f), new GradientColorKey(new Color(0.9f, 0.62f, 0.45f), 0.25f), new GradientColorKey(new Color(0.35f, 0.35f, 0.4f), 1f) }
+                    : new[] { new GradientColorKey(new Color(1f, 0.75f, 0.5f), 0f), new GradientColorKey(Color.white, 0.15f), new GradientColorKey(new Color(0.85f, 0.85f, 0.85f), 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.1f), new GradientAlphaKey(0.6f, 0.6f), new GradientAlphaKey(0f, 1f) });
             col.color = g;
 
@@ -590,7 +595,8 @@ namespace NasaHack.EditorTools
                     AssetDatabase.CreateAsset(mat, path);
                 }
                 mat.SetTexture("_BaseMap", SoftTexture());
-                mat.SetColor("_BaseColor", Color.white);
+                // Flames are HDR-bright so the bloom post effect makes them glow.
+                mat.SetColor("_BaseColor", additive ? new Color(2.6f, 2.4f, 2.2f, 1f) : Color.white);
                 mat.SetFloat("_Surface", 1f);
                 mat.SetFloat("_Blend", additive ? 2f : 0f);
                 mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);

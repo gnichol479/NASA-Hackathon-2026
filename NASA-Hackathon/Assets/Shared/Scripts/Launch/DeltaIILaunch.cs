@@ -17,6 +17,8 @@ namespace NasaHack
         public ParticleSystem[] airLitFlames;       // 3 GEM-46, lit in flight
         public Transform[] groundLitBoosters;       // dropped after burnout
         public Light engineLight;
+        [Tooltip("Peak engine glow. URP lights fall off with distance squared, so this is large: it lights up the whole pad at night.")]
+        public float engineLightIntensity = 4000f;
 
         [Header("Pad")]
         public ParticleSystem padSmoke;
@@ -37,12 +39,13 @@ namespace NasaHack
 
         const string IdleMessage =
             "DELTA II 7925H  •  MARS EXPLORATION ROVER-B \"OPPORTUNITY\"\n" +
-            "Cape Canaveral, Space Launch Complex 17B  •  July 7, 2003\n\n" +
+            "Cape Canaveral, Space Launch Complex 17B  •  July 7, 2003, 11:18 p.m. EDT\n\n" +
             "Press the red LAUNCH button to start the countdown.";
 
         float velocity;
         float flightTime;
         bool flying;
+        float ignitionTime = -1f;
         Quaternion padRotation;
 
         void Start()
@@ -51,6 +54,7 @@ namespace NasaHack
             SetStatus(IdleMessage);
             if (engineLight) engineLight.intensity = 0f;
             if (rocket) padRotation = rocket.rotation;
+            DynamicGI.UpdateEnvironment(); // refresh sky reflections (ocean, metal) from the skybox
         }
 
 #if ENABLE_LEGACY_INPUT_MANAGER
@@ -82,6 +86,7 @@ namespace NasaHack
                 {
                     SetStatus("Main engine start!");
                     Play(mainEngineFlames);
+                    ignitionTime = Time.time;
                     if (rumble) rumble.target = 0.35f;
                 }
                 yield return new WaitForSeconds(1f);
@@ -129,6 +134,14 @@ namespace NasaHack
 
         void LateUpdate()
         {
+            // Engine glow: builds up from main-engine start, flares at liftoff, fades as the rocket climbs away.
+            if (engineLight && ignitionTime >= 0f)
+            {
+                float build = Mathf.Clamp01((Time.time - ignitionTime) / 3f);
+                float level = flying ? Mathf.Lerp(1f, 0.08f, Mathf.Clamp01(flightTime / 20f)) : 0.35f * build;
+                engineLight.intensity = engineLightIntensity * level * Random.Range(0.85f, 1.15f);
+            }
+
             if (!flying || !rocket) return;
             float dt = Time.deltaTime;
             flightTime += dt;
@@ -141,12 +154,6 @@ namespace NasaHack
             float pitch = Mathf.SmoothStep(0f, 40f, Mathf.InverseLerp(5f, 28f, flightTime));
             rocket.rotation = padRotation * Quaternion.Euler(pitch, 0f, 0f);
             rocket.position += rocket.up * velocity * dt;
-
-            if (engineLight)
-            {
-                float fade = Mathf.Clamp01(1f - flightTime / 15f);
-                engineLight.intensity = (6f + Random.Range(-1.5f, 1.5f)) * Mathf.Max(fade, 0.15f);
-            }
 
             // Controller rumble while the engines are loud.
             if (Time.frameCount % 6 == 0)
