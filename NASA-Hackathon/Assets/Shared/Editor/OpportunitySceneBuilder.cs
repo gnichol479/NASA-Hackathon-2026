@@ -19,7 +19,9 @@ namespace NasaHack.EditorTools
     {
         const string ArrivalPath = "Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity";
         const string LegacyPath = "Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity";
-        const string ModelPath = "Assets/Opportunity/Models/Opportunity-NASA.glb";
+        // Detailed textured model (from Dominic). Faces the player when turned 180°.
+        const string ModelPath = "Assets/Opportunity/Models/Mars Exploration Rover - Spirit and Opportunity.fbx";
+        static readonly Quaternion ModelRotation = Quaternion.Euler(0f, 180f, 0f);
         const string SettingsDir = "Assets/Shared/Settings";
         const string TmpEssentials = "Packages/com.unity.textmeshpro/Package Resources/TMP Essential Resources.unitypackage";
 
@@ -216,19 +218,224 @@ namespace NasaHack.EditorTools
         {
             var root = new GameObject("Opportunity").transform;
             root.position = RoverPosition;
+            AddModel(root, model, dust, out bounds);
+            return root;
+        }
 
+        // Instantiates the model under root, centered on root, standing on the ground.
+        // hiddenParts: renderer paths to switch off (leftover Blender objects in the FBX).
+        // Models with an animation are posed at whichever end of the clip is flatter (panels deployed).
+        // fitWidth: scale to real rover width. The detailed FBX is already in meters, so it stays native.
+        static GameObject AddModel(Transform root, GameObject model, float dust, out Bounds bounds, string[] hiddenParts = null, bool fitWidth = true)
+        {
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, root);
             instance.name = "Model";
+            instance.transform.localRotation = ModelRotation;
+
+            foreach (var part in hiddenParts ?? new string[0])
+            {
+                var t = instance.transform.Find(part);
+                var r = t != null ? t.GetComponent<Renderer>() : null;
+                if (r != null) r.enabled = false;
+            }
+
+            PoseFlattest(instance, model);
 
             bounds = WorldBounds(instance);
-            float scale = RoverWidth / Mathf.Max(bounds.size.x, bounds.size.z);
+            float scale = fitWidth ? RoverWidth / Mathf.Max(bounds.size.x, bounds.size.z) : 1f;
             instance.transform.localScale *= scale;
             bounds = WorldBounds(instance);
-            instance.transform.position += new Vector3(RoverPosition.x - bounds.center.x, -bounds.min.y, RoverPosition.z - bounds.center.z);
+            instance.transform.position += new Vector3(root.position.x - bounds.center.x, root.position.y - bounds.min.y, root.position.z - bounds.center.z);
             bounds = WorldBounds(instance);
+            Debug.Log($"[NasaHack] Model scale x{scale:0.###}, size {bounds.size.x:0.00} x {bounds.size.y:0.00} x {bounds.size.z:0.00} m");
 
             instance.AddComponent<DustCover>().amount = dust;
-            return root;
+            return instance;
+        }
+
+        static void PoseFlattest(GameObject instance, GameObject model)
+        {
+            var clip = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(model))
+                .OfType<AnimationClip>()
+                .FirstOrDefault(c => !c.name.StartsWith("__preview__"));
+            if (clip == null) return;
+
+            // Deployed rover = panels spread out = biggest footprint.
+            clip.SampleAnimation(instance, 0f);
+            var start = WorldBounds(instance).size;
+            clip.SampleAnimation(instance, clip.length);
+            var end = WorldBounds(instance).size;
+            float time = end.x * end.z >= start.x * start.z ? clip.length : 0f;
+            clip.SampleAnimation(instance, time);
+            instance.transform.localRotation = ModelRotation;
+            Debug.Log($"[NasaHack] Posed '{clip.name}' at {time:0.##}s of {clip.length:0.##}s " +
+                      $"(start {start.x:0.00}x{start.y:0.00}x{start.z:0.00} m, end {end.x:0.00}x{end.y:0.00}x{end.z:0.00} m)");
+        }
+
+
+        // Re-runnable: always replaces Opportunity/Model with a fresh detailed model.
+        [MenuItem("NasaHack/Swap Arrival + Legacy to Detailed Rover")]
+        public static void SwapToDetailedModel()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first.");
+                return;
+            }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            if (model == null)
+            {
+                Debug.LogError("[NasaHack] Detailed model not found at " + ModelPath);
+                return;
+            }
+
+            var hidden = HiddenParts(model);
+
+            foreach (var path in new[] { ArrivalPath, LegacyPath })
+            {
+                var scene = EditorSceneManager.OpenScene(path);
+                var root = GameObject.Find("Opportunity");
+                var old = root != null ? root.transform.Find("Model") : null;
+                if (old == null)
+                {
+                    Debug.LogWarning("[NasaHack] No Opportunity/Model in " + path + ", skipped.");
+                    continue;
+                }
+
+                var oldDust = old.GetComponent<DustCover>();
+                float dust = oldDust != null ? oldDust.amount : 0.5f;
+                int index = old.GetSiblingIndex();
+                Object.DestroyImmediate(old.gameObject);
+
+                var instance = AddModel(root.transform, model, dust, out _, hidden, fitWidth: false);
+                instance.transform.SetSiblingIndex(index);
+                SnapHotspotsToParts(root.transform, instance.transform);
+                EditorSceneManager.SaveScene(scene);
+                Debug.Log("[NasaHack] Swapped to detailed model: " + path);
+            }
+            EditorSceneManager.OpenScene(ArrivalPath);
+        }
+
+        const string FlashbackPath = "Assets/Opportunity/NASA-Headquarters/LastSignalFlashback/Scenes/Opportunity-Flashback.unity";
+        const string OriginPath = "Assets/Opportunity/Origin/Scenes/Opportunity-Origin.unity";
+
+        // Points Arrival's "See how I got here" at Gibson's flashback scene and puts that scene
+        // in Build Settings in place of the empty Origin placeholder.
+        [MenuItem("NasaHack/Link Arrival to Gibson's Flashback")]
+        public static void LinkFlashback()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first.");
+                return;
+            }
+            if (!File.Exists(FlashbackPath))
+            {
+                Debug.LogError("[NasaHack] Gibson's scene not found at " + FlashbackPath);
+                return;
+            }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var scene = EditorSceneManager.OpenScene(ArrivalPath);
+            var flow = Object.FindObjectOfType<LoadNextScene>();
+            if (flow == null)
+            {
+                Debug.LogError("[NasaHack] No Scene Flow (LoadNextScene) in " + ArrivalPath);
+                return;
+            }
+            flow.nextScene = Path.GetFileNameWithoutExtension(FlashbackPath);
+            EditorUtility.SetDirty(flow);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+
+            var scenes = EditorBuildSettings.scenes.ToList();
+            scenes.RemoveAll(s => s.path == OriginPath || s.path == FlashbackPath);
+            int arrival = scenes.FindIndex(s => s.path == ArrivalPath);
+            scenes.Insert(arrival >= 0 ? arrival + 1 : scenes.Count, new EditorBuildSettingsScene(FlashbackPath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+
+            Debug.Log("[NasaHack] Arrival now loads " + flow.nextScene + ". Build Settings: " +
+                      string.Join(" -> ", scenes.Select(s => Path.GetFileNameWithoutExtension(s.path))));
+        }
+
+        // Leftover Blender objects in the detailed FBX (proxy cubes and a big "_root" block).
+        // Copied from what Dominic hid in his Launch scene.
+        static readonly string[] KnownHiddenParts =
+        {
+            "_root",
+            "_root/body/arm_mount/arm_base/Cube.010",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008/arm_joint2/Cube.007",
+            "_root/body/mast/Cube.012",
+            "_root/body/panels_left/panels_left_front/Cube.006",
+            "_root/body/panels_right/panels_right_front/Cube.029",
+            "_root/body/suspension_left_front/Cube.025",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022/suspension_left_front_axl/Cube.005",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/Cube.003",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021/suspension_left_rear_axl/Cube.004",
+            "_root/body/suspension_right_front/Cube.000",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001/suspension_right_front_axl/Cube.009",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/Cube.002",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020/suspension_right_rear_axl/Cube",
+        };
+
+        static string[] HiddenParts(GameObject model)
+        {
+            var paths = KnownHiddenParts.Where(p => model.transform.Find(p) != null).ToArray();
+            Debug.Log($"[NasaHack] Hiding {paths.Length}/{KnownHiddenParts.Length} leftover parts.");
+            return paths;
+        }
+
+        // Moves the Arrival hotspots onto the named parts of the detailed model.
+        static void SnapHotspotsToParts(Transform rover, Transform model)
+        {
+            var hotspots = rover.Find("Hotspots");
+            if (hotspots == null) return;
+            Snap(hotspots, "Hotspot - Solar panels", NearestPart(model, "panels_"), onTop: true);
+            Snap(hotspots, "Hotspot - Pancam (panoramic camera)", FindPart(model, "mast_cam") ?? FindPart(model, "mast_top"), onTop: true);
+            Snap(hotspots, "Hotspot - Robotic arm", FindPart(model, "arm_turret") ?? FindPart(model, "arm_wrist"), onTop: false);
+            Snap(hotspots, "Hotspot - Wheels", NearestPart(model, "_wheel"), onTop: false);
+        }
+
+        // onTop: just above the part. Otherwise on the side of the part facing the player.
+        static void Snap(Transform hotspots, string name, Transform part, bool onTop)
+        {
+            var hotspot = hotspots.Find(name);
+            if (hotspot == null || part == null) return;
+            var renderers = part.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
+            if (renderers.Length == 0) return;
+            var b = renderers[0].bounds;
+            foreach (var r in renderers.Skip(1)) b.Encapsulate(r.bounds);
+
+            if (onTop)
+            {
+                hotspot.position = new Vector3(b.center.x, b.max.y + 0.06f, b.center.z);
+                return;
+            }
+            var toPlayer = Head - b.center;
+            toPlayer.y = 0f;
+            toPlayer.Normalize();
+            hotspot.position = b.center + toPlayer * (Mathf.Max(b.extents.x, b.extents.z) + 0.06f);
+        }
+
+        static Transform FindPart(Transform model, string name)
+        {
+            return model.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+        }
+
+        // The part whose name contains `fragment` that is closest to the player.
+        static Transform NearestPart(Transform model, string fragment)
+        {
+            return model.GetComponentsInChildren<Transform>(true)
+                .Where(t => t.name.Contains(fragment) && t.GetComponentsInChildren<Renderer>().Any(r => r.enabled))
+                .OrderBy(t => Vector3.Distance(t.position, Head))
+                .FirstOrDefault();
         }
 
         // Top of the submesh that uses the "SolarArrays" material, if the model has one.
@@ -275,7 +482,7 @@ namespace NasaHack.EditorTools
 
         static Bounds WorldBounds(GameObject go)
         {
-            var renderers = go.GetComponentsInChildren<Renderer>();
+            var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
             var b = renderers[0].bounds;
             foreach (var r in renderers.Skip(1)) b.Encapsulate(r.bounds);
             return b;
