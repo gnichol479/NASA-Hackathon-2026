@@ -26,17 +26,19 @@ Hey team, here's where we are.
 - All 5 Opportunity scenes exist, are in Build Settings, and are linked in order
 - **Arrival** (Yayo): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
 - **Legacy** (Yayo): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
-- **Launch** (Dominic): detailed Spirit/Opportunity model with textures + rover animations
+- **Launch** (Dominic): Delta II night launch, detailed Spirit/Opportunity model with textures + unfold animation
+- **Flashback/Origin** (Gibson): rover assembly experience in the facility
 - Shared scripts anyone can reuse (see below)
 
 **Your part**
-- Gibson: Origin (who am I, what was I sent to do)
+- Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
 - Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
 - Yayo: Arrival + Legacy
 
 **Open decisions**
-- Gibson made `Opportunity/NASA-Headquarters/`, setup made `Opportunity/Origin/` with the `Opportunity-Origin` scene. Pick one folder. Don't rename the scene without telling everyone, the scene chain loads it by name
+- ~~Origin folder~~ Decided: Gibson's `Opportunity-Flashback` (in `NASA-Headquarters/LastSignalFlashback/`) is the Origin part. Arrival links to it and it's in Build Settings. The empty `Opportunity/Origin/` folder can be deleted
+- **Gibson:** hook "Ready for Launch" to the chain. Add a Scene Flow object (LoadNextScene, Next Scene = `Opportunity-Launch`) and add `LoadNextScene.Load` to On Launch Handoff Requested
 - The real rovers were built at JPL (Jet Propulsion Laboratory), not NASA HQ. A JPL clean room is the accurate setting for Origin
 - Quest 2: Quest Link needs a Windows PC with a decent GPU. Who has one for the demo?
 - Who owns the pitch slides?
@@ -44,7 +46,7 @@ Hey team, here's where we are.
 ## Scene flow
 
 ```
-TitleScreen → Opportunity-Arrival → Opportunity-Origin → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen
+TitleScreen → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen
                  (present)            (flashback)          (flashback)          (flashback)            (present)
 ```
 
@@ -52,6 +54,10 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - From a 3D object: add **XR Simple Interactable**, then in its **Select Entered** event drag in Scene Flow → `LoadNextScene.Load`
 - From a UI button: **OnClick** → Scene Flow → `LoadNextScene.Load`
 - After a video or narration: set **Auto Load After** on Scene Flow (seconds)
+
+## Unity tip
+
+**Edit > Preferences > General > Script Changes While Playing → Recompile After Finished Playing.** Otherwise pulling or editing code while in Play mode breaks the running scene with a wall of errors.
 
 ## Getting started
 
@@ -103,7 +109,8 @@ Assets/
 
 **Models**
 - `Mars Exploration Rover - Spirit and Opportunity.fbx`: detailed, textured (from Dominic). Best for close-ups
-- `Opportunity-NASA.glb`: low-poly, used in Arrival/Legacy for now. Will swap to the detailed model
+- Arrival and Legacy now use the detailed model, posed deployed (end of its unfold clip), with 19 leftover Blender parts hidden. Hide those same parts if you use the model elsewhere (list in `OpportunitySceneBuilder.cs`, `KnownHiddenParts`)
+- `Opportunity-NASA.glb`: low-poly backup
 
 ## Git workflow
 
