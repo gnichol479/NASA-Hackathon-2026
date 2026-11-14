@@ -21,6 +21,18 @@ namespace NasaHack.EditorTools
 
         const float LandEndZ = 220f, BeachEndZ = 275f;
 
+        const float LampHeight = 6.5f;
+        static readonly Vector3[] RoadLamps =
+        {
+            new Vector3(-5.6f, 0f, 18f), new Vector3(5.6f, 0f, 18f),
+            new Vector3(-5.6f, 0f, 34f), new Vector3(5.6f, 0f, 34f),
+            new Vector3(-5.6f, 0f, 52f), new Vector3(5.6f, 0f, 52f),
+        };
+        static readonly Vector3[] LightningMasts =
+        {
+            new Vector3(-26f, 0f, 64f), new Vector3(26f, 0f, 64f), new Vector3(-26f, 0f, 116f), new Vector3(26f, 0f, 116f),
+        };
+
         static void BuildEnvironment(UnityEngine.SceneManagement.Scene scene, Mats mats, Dictionary<string, Mesh> meshes)
         {
             foreach (var name in new[] { EnvRoot, "Post Processing" })
@@ -82,23 +94,24 @@ namespace NasaHack.EditorTools
             var pole = mats.Get("Pole Gray", new Color(0.5f, 0.5f, 0.52f), 0.4f, 0.4f);
             var lamp = mats.Get("Lamp", new Color(1f, 0.95f, 0.8f), 0.6f, 0f, false,
                                 NightLaunch ? new Color(3.2f, 2.7f, 1.8f) : new Color(1.2f, 1.1f, 0.85f));
-            for (float z = 12f; z < 60f; z += 16f)
-                foreach (float x in new[] { -6f, 6f })
-                {
-                    NoCollider(Box(env, "Light Pole", new Vector3(x, 4.5f, z), new Vector3(0.18f, 9f, 0.18f), pole));
-                    NoCollider(Box(env, "Light Arm", new Vector3(x * 0.85f, 8.9f, z), new Vector3(1.0f, 0.12f, 0.12f), pole));
-                    NoCollider(Box(env, "Lamp Head", new Vector3(x * 0.75f, 8.8f, z), new Vector3(0.5f, 0.15f, 0.3f), lamp));
-                }
+            foreach (var p in RoadLamps)
+            {
+                float side = Mathf.Sign(p.x);
+                NoCollider(Box(env, "Light Pole", new Vector3(p.x, LampHeight / 2f, p.z), new Vector3(0.14f, LampHeight, 0.14f), pole));
+                NoCollider(Box(env, "Light Arm", new Vector3(p.x - side * 0.8f, LampHeight - 0.05f, p.z), new Vector3(1.7f, 0.08f, 0.08f), pole));
+                NoCollider(Box(env, "Lamp Housing", new Vector3(p.x - side * 1.6f, LampHeight - 0.05f, p.z), new Vector3(0.7f, 0.12f, 0.3f), pole));
+                NoCollider(Box(env, "Lamp Head", new Vector3(p.x - side * 1.6f, LampHeight - 0.13f, p.z), new Vector3(0.55f, 0.04f, 0.22f), lamp));
+            }
 
             // ---------------------------------------------------------------- Pad structures
             var mast = mats.Get("Mast White", new Color(0.86f, 0.86f, 0.84f), 0.4f);
             var mastRed = mats.Get("Mast Red", new Color(0.75f, 0.12f, 0.08f), 0.4f);
-            foreach (var (x, z) in new[] { (-24f, 66f), (24f, 66f), (-24f, 114f), (24f, 114f) })
+            foreach (var p in LightningMasts)
             {
-                Box(env, "Lightning Mast", new Vector3(x, 26f, z), new Vector3(0.6f, 52f, 0.6f), mast);
+                Box(env, "Lightning Mast", new Vector3(p.x, 26f, p.z), new Vector3(0.34f, 52f, 0.34f), mast);
                 for (float y = 6f; y < 52f; y += 12f)
-                    NoCollider(Box(env, "Mast Band", new Vector3(x, y, z), new Vector3(0.66f, 3f, 0.66f), mastRed));
-                NoCollider(Box(env, "Mast Spike", new Vector3(x, 54f, z), new Vector3(0.12f, 4f, 0.12f), pole));
+                    NoCollider(Box(env, "Mast Band", new Vector3(p.x, y, p.z), new Vector3(0.38f, 3f, 0.38f), mastRed));
+                NoCollider(Box(env, "Mast Spike", new Vector3(p.x, 54f, p.z), new Vector3(0.08f, 4f, 0.08f), pole));
             }
 
             // SLC-17A, the twin pad next door, with its service tower closed up.
@@ -171,6 +184,10 @@ namespace NasaHack.EditorTools
             for (int i = 0; i < 14; i++) palmSpots.Add(new Vector3(R(-45f, -9f), 0f, R(-35f, 25f)));
             for (int i = 0; i < 12; i++) palmSpots.Add(new Vector3(R(10f, 50f), 0f, R(-35f, 25f)));
             for (int i = 0; i < 8; i++) palmSpots.Add(new Vector3(R(-150f, -80f), 0f, R(20f, 120f)));
+            // Flanking the access road, where the road lamps pick them out against the night sky.
+            for (int i = 0; i < 9; i++) palmSpots.Add(new Vector3(R(-24f, -8f), 0f, R(22f, 36f)));
+            for (int i = 0; i < 12; i++) palmSpots.Add(new Vector3(R(8f, 26f), 0f, R(9f, 36f)));
+            for (int i = 0; i < 10; i++) palmSpots.Add(new Vector3((i % 2 == 0 ? -1f : 1f) * R(9f, 30f), 0f, R(48f, 58f)));
             for (int i = 0; i < 26; i++) palmSpots.Add(new Vector3(R(-380f, 380f), 0f, R(200f, 216f)));
             foreach (var p in palmSpots)
             {
@@ -275,7 +292,8 @@ namespace NasaHack.EditorTools
                    In(0f, 90f, 70f, 70f) || In(175f, 110f, 50f, 50f) || In(0f, 1.5f, 11f, 9f) ||
                    In(-115f, 70f, 40f, 44f) || In(-170f, 160f, 14f, 14f) ||
                    In(-270f, -60f, 60f, 37f) || In(-245f, -150f, 45f, 31f) || In(240f, -90f, 67f, 41f) || In(300f, 20f, 35f, 27f) ||
-                   In(-24f, 66f, 3f, 3f) || In(24f, 66f, 3f, 3f) || In(-24f, 114f, 3f, 3f) || In(24f, 114f, 3f, 3f);
+                   In(-26f, 64f, 3f, 3f) || In(26f, 64f, 3f, 3f) || In(-26f, 116f, 3f, 3f) || In(26f, 116f, 3f, 3f) ||
+                   In(-8.5f, 15f, 9f, 9f); // countdown sign
         }
 
         static void Blob(Transform parent, string name, Mesh mesh, Material mat, Vector3 pos, Vector3 scale, float yaw)
@@ -362,7 +380,7 @@ namespace NasaHack.EditorTools
                 {
                     float u = i / (float)N;
                     var center = top + dir * (L * u) + Vector3.up * (1.1f * u - 2.6f * u * u);
-                    float w = 0.95f * Mathf.Pow(Mathf.Sin(Mathf.PI * Mathf.Min(u * 1.15f, 1f)), 0.7f) + 0.02f;
+                    float w = 0.95f * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Min(u * 1.15f, 1f))), 0.7f) + 0.02f;
                     fv.Add(center - side * w / 2f); fv.Add(center + Vector3.up * 0.12f * (1f - u)); fv.Add(center + side * w / 2f);
                     fu.Add(new Vector2(0f, u)); fu.Add(new Vector2(0.5f, u)); fu.Add(new Vector2(1f, u));
                 }

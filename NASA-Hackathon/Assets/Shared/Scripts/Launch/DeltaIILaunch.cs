@@ -15,6 +15,7 @@ namespace NasaHack
         public ParticleSystem[] mainEngineFlames;   // RS-27A + verniers
         public ParticleSystem[] groundLitFlames;    // 6 GEM-46, lit on the pad
         public ParticleSystem[] airLitFlames;       // 3 GEM-46, lit in flight
+        public ParticleSystem[] liftoffEffects;     // exhaust trail and glow, started at liftoff
         public Transform[] groundLitBoosters;       // dropped after burnout
         public Light engineLight;
         [Tooltip("Peak engine glow. URP lights fall off with distance squared, so this is large: it lights up the whole pad at night.")]
@@ -96,6 +97,7 @@ namespace NasaHack
             SetClock("T+00");
             SetStatus("LIFTOFF!\nDelta II lifts off carrying the Opportunity rover to Mars.");
             Play(groundLitFlames);
+            Play(liftoffEffects);
             if (padSmoke) padSmoke.Play();
             if (rumble) rumble.target = 1f;
             flying = true;

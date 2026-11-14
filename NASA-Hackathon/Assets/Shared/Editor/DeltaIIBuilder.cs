@@ -21,10 +21,6 @@ namespace NasaHack.EditorTools
     [InitializeOnLoad]
     public static partial class DeltaIIBuilder
     {
-        // Bump when the builder changes, so Unity rebuilds the launch once on this machine.
-        const int BuildVersion = 4;
-        static string VersionKey => "NasaHack.DeltaII.BuildVersion." + Application.dataPath.GetHashCode();
-
         const string Root = "Assets/Opportunity/Launch";
         const string ScenePath = Root + "/Scenes/Opportunity-Launch.unity";
         const string MeshPath = Root + "/Models/DeltaII-Meshes.asset";
@@ -35,21 +31,11 @@ namespace NasaHack.EditorTools
         static readonly Vector3 PadPosition = new Vector3(0f, 0f, 90f);
         const float PadTop = 0.8f, MountHeight = 3.2f;
 
-        // Run once automatically when this script first compiles (if nothing is built yet).
+        // The scene is saved in git, so nothing is built automatically. Rebuild from the menu,
+        // or through the request file watched in DeltaIIBuilder.Preview.cs.
         static DeltaIIBuilder()
         {
-            string ranKey = "NasaHack.DeltaII.AutoRan.v" + BuildVersion;
-            if (Application.isBatchMode || SessionState.GetBool(ranKey, false)) return;
-            if (File.Exists(PrefabPath) && EditorPrefs.GetInt(VersionKey, 1) >= BuildVersion) return;
-            SessionState.SetBool(ranKey, true);
-            EditorApplication.delayCall += AutoRun;
-        }
-
-        static void AutoRun()
-        {
-            if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
-            { EditorApplication.delayCall += AutoRun; return; }
-            Build();
+            if (!Application.isBatchMode) StartRequestWatcher();
         }
 
         [MenuItem("NasaHack/Opportunity/Build Delta II Launch")]
@@ -94,6 +80,7 @@ namespace NasaHack.EditorTools
                 launch.groundLitFlames = FindAll<ParticleSystem>(rocket, "Flame GroundLit");
                 launch.airLitFlames = FindAll<ParticleSystem>(rocket, "Flame AirLit");
                 launch.groundLitBoosters = rocket.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("GEM-46 Ground-lit")).ToArray();
+                launch.liftoffEffects = FindAll<ParticleSystem>(rocket, "Exhaust Trail", "Engine Flare");
                 launch.engineLight = rocket.GetComponentsInChildren<Light>(true).FirstOrDefault();
                 launch.padSmoke = smoke;
                 launch.sceneFlow = Object.FindObjectOfType<LoadNextScene>();
@@ -103,7 +90,7 @@ namespace NasaHack.EditorTools
                 launch.rumble = complex.AddComponent<RocketRumble>();
 
                 // ---- Player-side props (player starts at the origin facing +Z)
-                var (clock, status) = BuildBoard(scene);
+                var (clock, status) = BuildBoard(scene, mats);
                 launch.clockText = clock;
                 launch.statusText = status;
                 BuildConsole(launch, mats);
@@ -111,7 +98,6 @@ namespace NasaHack.EditorTools
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
                 AssetDatabase.SaveAssets();
-                EditorPrefs.SetInt(VersionKey, BuildVersion);
                 Selection.activeGameObject = complex;
                 Debug.Log("[Delta II] Built the Delta II 7925H launch in " + ScenePath +
                           ". Press Play, then press the red LAUNCH button (or L on the keyboard).");
@@ -139,6 +125,8 @@ namespace NasaHack.EditorTools
                 ["Fairing Boattail"] = Lathe("Fairing Boattail", P(CoreR, 29.6f, FairingR, 30.4f), false, false),
                 ["Fairing Body"] = Lathe("Fairing Body", P(FairingR, 30.4f, FairingR, 35.4f), false, false),
                 ["Fairing Nose"] = Lathe("Fairing Nose", Ogive(FairingR, 35.4f, 3.5f, 14), false, false),
+                ["Fairing Band"] = Lathe("Fairing Band", P(FairingR + 0.012f, 0f, FairingR + 0.012f, 0.14f), false, false),
+                ["Booster Band"] = Lathe("Booster Band", P(BoosterR + 0.01f, 0f, BoosterR + 0.01f, 0.22f), false, false),
                 ["Booster Skirt"] = Lathe("Booster Skirt", P(0.66f, 0f, BoosterR, 0.6f), true, false),
                 ["Booster Body"] = Lathe("Booster Body", P(BoosterR, 0.6f, BoosterR, 12.7f), false, false),
                 ["Booster Nose"] = Lathe("Booster Nose", Ogive(BoosterR, 12.7f, 2.0f, 10), false, false),
@@ -163,6 +151,7 @@ namespace NasaHack.EditorTools
             var deltaBlue = mats.Get("Delta Blue", new Color(0.36f, 0.62f, 0.70f), 0.45f);
             var white = mats.Get("Rocket White", new Color(0.92f, 0.92f, 0.9f), 0.5f);
             var dark = mats.Get("Interstage Black", new Color(0.09f, 0.09f, 0.1f), 0.35f);
+            var trim = mats.Get("Rocket Trim", new Color(0.55f, 0.57f, 0.6f), 0.4f, 0.3f);
             var metal = mats.Get("Nozzle Metal", new Color(0.22f, 0.2f, 0.19f), 0.6f, 0.85f, doubleSided: true);
             var flameMat = mats.Particle("Flame", additive: true);
 
@@ -170,14 +159,23 @@ namespace NasaHack.EditorTools
             Part(rocket.transform, "Thrust Section", m, dark, Vector3.zero);
             Part(rocket.transform, "Core", m, deltaBlue, Vector3.zero);
             Part(rocket.transform, "Core Band", m, dark, new Vector3(0f, 25.75f, 0f));
-            Part(rocket.transform, "Interstage", m, dark, Vector3.zero);
+            Part(rocket.transform, "Interstage", m, deltaBlue, Vector3.zero);
+            Part(rocket.transform, "Core Band", m, white, new Vector3(0f, 24.4f, 0f));
+            Part(rocket.transform, "Core Band", m, dark, new Vector3(0f, 29.3f, 0f));
+            Part(rocket.transform, "Fairing Band", m, trim, new Vector3(0f, 30.4f, 0f));
+            Part(rocket.transform, "Fairing Band", m, trim, new Vector3(0f, 35.3f, 0f));
+            // Cable raceway running up the core, on the side facing the viewing deck.
+            var raceway = Box(rocket.transform, "Raceway", Vector3.zero, new Vector3(0.28f, 23f, 0.12f), trim);
+            NoCollider(raceway);
+            raceway.transform.localRotation = Quaternion.Euler(0f, 200f, 0f);
+            raceway.transform.localPosition = raceway.transform.localRotation * new Vector3(0f, 14f, CoreR + 0.04f);
             Part(rocket.transform, "Fairing Boattail", m, white, Vector3.zero);
             Part(rocket.transform, "Fairing Body", m, white, Vector3.zero);
             Part(rocket.transform, "Fairing Nose", m, white, Vector3.zero);
 
             // RS-27A main engine + two vernier engines
             Part(rocket.transform, "Nozzle RS-27A", m, metal, Vector3.zero);
-            MakeFlame(rocket.transform, "Flame Main", new Vector3(0f, -1.25f, 0f), 0.5f, 1.6f, flameMat);
+            MakeFlame(rocket.transform, "Flame Main", new Vector3(0f, -1.25f, 0f), 0.5f, 1.5f, flameMat);
             foreach (float x in new[] { -1.05f, 1.05f })
             {
                 var v = Part(rocket.transform, "Nozzle RS-27A", m, metal, new Vector3(x, 0.3f, 0.45f));
@@ -200,10 +198,15 @@ namespace NasaHack.EditorTools
                 Part(b.transform, "Booster Skirt", m, white, Vector3.zero);
                 Part(b.transform, "Booster Body", m, white, Vector3.zero);
                 Part(b.transform, "Booster Nose", m, white, Vector3.zero);
+                Part(b.transform, "Booster Band", m, dark, new Vector3(0f, 1.1f, 0f));
+                Part(b.transform, "Booster Band", m, dark, new Vector3(0f, 12.3f, 0f));
                 Part(b.transform, airLit ? "Nozzle GEM Air" : "Nozzle GEM Ground", m, metal, Vector3.zero);
                 MakeFlame(b.transform, airLit ? "Flame AirLit" : "Flame GroundLit",
-                          new Vector3(0f, airLit ? -1.15f : -0.6f, 0f), 0.35f, 1.15f, flameMat);
+                          new Vector3(0f, airLit ? -1.15f : -0.6f, 0f), 0.35f, 1.25f, flameMat);
             }
+
+            MakeExhaustTrail(rocket.transform, mats);
+            MakeEngineFlare(rocket.transform, flameMat);
 
             var lightGo = new GameObject("Engine Glow");
             lightGo.transform.SetParent(rocket.transform, false);
@@ -229,6 +232,7 @@ namespace NasaHack.EditorTools
             return go;
         }
 
+        // Engine plume: stretched streaks, white-hot at the nozzle, fading through yellow to deep orange.
         static ParticleSystem MakeFlame(Transform parent, string name, Vector3 pos, float radius, float size, Material mat)
         {
             var go = new GameObject(name);
@@ -242,29 +246,113 @@ namespace NasaHack.EditorTools
             main.playOnAwake = false;
             main.loop = true;
             main.duration = 5f;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.6f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(22f, 32f);
-            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.8f, size * 1.3f);
-            main.startColor = new Color(1f, 0.85f, 0.55f);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.45f, 0.8f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(26f, 40f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * 0.8f, size * 1.25f);
+            main.startColor = Color.white;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 800;
+            main.maxParticles = 600;
 
-            var em = ps.emission; em.rateOverTime = 160f;
-            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 5f; sh.radius = radius;
+            var em = ps.emission; em.rateOverTime = 150f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 4f; sh.radius = radius;
 
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
             g.SetKeys(
-                new[] { new GradientColorKey(new Color(1f, 0.95f, 0.8f), 0f), new GradientColorKey(new Color(1f, 0.55f, 0.15f), 0.35f), new GradientColorKey(new Color(0.6f, 0.2f, 0.08f), 1f) },
-                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0.7f, 0.4f), new GradientAlphaKey(0f, 1f) });
+                new[]
+                {
+                    new GradientColorKey(new Color(1f, 0.98f, 0.92f), 0f), new GradientColorKey(new Color(1f, 0.85f, 0.45f), 0.25f),
+                    new GradientColorKey(new Color(1f, 0.5f, 0.14f), 0.6f), new GradientColorKey(new Color(0.5f, 0.14f, 0.05f), 1f),
+                },
+                new[] { new GradientAlphaKey(0.7f, 0f), new GradientAlphaKey(0.5f, 0.3f), new GradientAlphaKey(0.25f, 0.7f), new GradientAlphaKey(0f, 1f) });
             col.color = g;
 
             var sz = ps.sizeOverLifetime; sz.enabled = true;
-            sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.7f, 1f, 2.6f));
+            sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.75f), new Keyframe(0.4f, 1.5f), new Keyframe(1f, 3.2f)));
 
             var r = go.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = mat;
-            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.renderMode = ParticleSystemRenderMode.Stretch;
+            r.velocityScale = 0.035f;
+            r.lengthScale = 1.6f;
+            r.sortingFudge = -10f;
+            return ps;
+        }
+
+        // Smoke and glowing exhaust left behind as the rocket climbs.
+        static ParticleSystem MakeExhaustTrail(Transform rocket, Mats mats)
+        {
+            var go = new GameObject("Exhaust Trail");
+            go.transform.SetParent(rocket, false);
+            go.transform.localPosition = new Vector3(0f, -6f, 0f);
+            go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.duration = 5f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(9f, 14f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(3f, 10f);
+            main.startSize = new ParticleSystem.MinMaxCurve(4f, 6.5f);
+            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+            main.startColor = Color.white;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 2500;
+
+            var em = ps.emission; em.rateOverTime = 45f; em.rateOverDistance = 0.3f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 14f; sh.radius = 1.8f;
+            var lim = ps.limitVelocityOverLifetime; lim.enabled = true; lim.limit = 1.5f; lim.dampen = 0.06f;
+
+            // Lit fiery orange right behind the engines, cooling to moonlit grey-blue smoke.
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(
+                NightLaunch
+                    ? new[] { new GradientColorKey(new Color(1f, 0.72f, 0.4f), 0f), new GradientColorKey(new Color(0.75f, 0.42f, 0.26f), 0.12f), new GradientColorKey(new Color(0.3f, 0.3f, 0.36f), 0.45f), new GradientColorKey(new Color(0.2f, 0.21f, 0.27f), 1f) }
+                    : new[] { new GradientColorKey(new Color(1f, 0.85f, 0.6f), 0f), new GradientColorKey(Color.white, 0.12f), new GradientColorKey(new Color(0.9f, 0.9f, 0.9f), 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.7f, 0.04f), new GradientAlphaKey(0.5f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            col.color = g;
+
+            var sz = ps.sizeOverLifetime; sz.enabled = true;
+            sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.6f), new Keyframe(0.3f, 2.2f), new Keyframe(1f, 4.5f)));
+            var rot = ps.rotationOverLifetime; rot.enabled = true; rot.z = new ParticleSystem.MinMaxCurve(-0.25f, 0.25f);
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = mats.Particle("Smoke", additive: false);
+            r.sortingFudge = 20f; // draw behind the flames
+            return ps;
+        }
+
+        // Soft ball of light around the nozzles; with bloom it reads as a brilliant point even from far away.
+        static ParticleSystem MakeEngineFlare(Transform rocket, Material flameMat)
+        {
+            var go = new GameObject("Engine Flare");
+            go.transform.SetParent(rocket, false);
+            go.transform.localPosition = new Vector3(0f, -2.5f, 0f);
+
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.duration = 5f;
+            main.startLifetime = 0.25f;
+            main.startSpeed = 0f;
+            main.startSize = new ParticleSystem.MinMaxCurve(11f, 15f);
+            main.startColor = new Color(1f, 0.68f, 0.36f, 0.13f);
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = 20;
+            var em = ps.emission; em.rateOverTime = 24f;
+            var sh = ps.shape; sh.enabled = false;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                      new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.5f), new GradientAlphaKey(0f, 1f) });
+            col.color = g;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.sharedMaterial = flameMat;
             return ps;
         }
 
@@ -282,8 +370,8 @@ namespace NasaHack.EditorTools
             main.loop = true;
             main.duration = 5f;
             main.startLifetime = new ParticleSystem.MinMaxCurve(7f, 11f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(8f, 18f);
-            main.startSize = new ParticleSystem.MinMaxCurve(5f, 11f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(12f, 26f);
+            main.startSize = new ParticleSystem.MinMaxCurve(6f, 12f);
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
             // Smoke is unlit, so at night it's tinted darker, with an orange glow where the flames light it.
             main.startColor = NightLaunch ? new Color(0.5f, 0.45f, 0.43f) : new Color(0.82f, 0.8f, 0.78f);
@@ -291,18 +379,18 @@ namespace NasaHack.EditorTools
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = 1500;
 
-            var em = ps.emission; em.rateOverTime = 90f;
-            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 82f; sh.radius = 3f;
+            var em = ps.emission; em.rateOverTime = 110f;
+            var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 84f; sh.radius = 3f;
 
-            var lim = ps.limitVelocityOverLifetime; lim.enabled = true; lim.limit = 3f; lim.dampen = 0.08f;
+            var lim = ps.limitVelocityOverLifetime; lim.enabled = true; lim.limit = 2.5f; lim.dampen = 0.05f;
 
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
             g.SetKeys(
                 NightLaunch
-                    ? new[] { new GradientColorKey(new Color(1f, 0.6f, 0.3f), 0f), new GradientColorKey(new Color(0.9f, 0.62f, 0.45f), 0.25f), new GradientColorKey(new Color(0.35f, 0.35f, 0.4f), 1f) }
+                    ? new[] { new GradientColorKey(new Color(1f, 0.78f, 0.5f), 0f), new GradientColorKey(new Color(0.95f, 0.62f, 0.4f), 0.2f), new GradientColorKey(new Color(0.5f, 0.42f, 0.42f), 0.6f), new GradientColorKey(new Color(0.32f, 0.33f, 0.4f), 1f) }
                     : new[] { new GradientColorKey(new Color(1f, 0.75f, 0.5f), 0f), new GradientColorKey(Color.white, 0.15f), new GradientColorKey(new Color(0.85f, 0.85f, 0.85f), 1f) },
-                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.85f, 0.1f), new GradientAlphaKey(0.6f, 0.6f), new GradientAlphaKey(0f, 1f) });
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.55f, 0.1f), new GradientAlphaKey(0.4f, 0.6f), new GradientAlphaKey(0f, 1f) });
             col.color = g;
 
             var sz = ps.sizeOverLifetime; sz.enabled = true;
@@ -362,30 +450,46 @@ namespace NasaHack.EditorTools
                 Box(tower, "Swing Arm", new Vector3(4.2f, y, 0f), new Vector3(5.4f, 0.6f, 1.2f), red);
         }
 
-        static (Text clock, Text status) BuildBoard(UnityEngine.SceneManagement.Scene scene)
+        // Countdown clock sign standing on the grass to the front-left, like the one at the Cape's press site.
+        static (Text clock, Text status) BuildBoard(UnityEngine.SceneManagement.Scene scene, Mats mats)
         {
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            var board = new GameObject("Countdown Board", typeof(RectTransform));
-            var pos = new Vector3(-2.4f, 2.3f, 4.2f);
-            board.transform.position = pos;
-            board.transform.rotation = Quaternion.LookRotation(new Vector3(pos.x, 0f, pos.z).normalized);
-            board.transform.localScale = Vector3.one * 0.002f;
+            var frame = mats.Get("Sign Frame", new Color(0.12f, 0.13f, 0.15f), 0.4f, 0.5f);
+            var face = mats.Get("Sign Face", new Color(0.015f, 0.018f, 0.025f), 0.6f);
+
+            var root = new GameObject("Countdown Board").transform;
+            var pos = new Vector3(-8.5f, 0f, 15f);
+            root.position = pos;
+            root.rotation = Quaternion.LookRotation(new Vector3(pos.x, 0f, pos.z).normalized); // back to the player
+
+            const float W = 7.4f, H = 3.6f, Y = 2.9f;
+            Box(root, "Sign Face", new Vector3(0f, Y, 0.1f), new Vector3(W, H, 0.12f), face);
+            Box(root, "Sign Frame Top", new Vector3(0f, Y + H / 2f + 0.06f, 0.08f), new Vector3(W + 0.24f, 0.12f, 0.22f), frame);
+            Box(root, "Sign Frame Bottom", new Vector3(0f, Y - H / 2f - 0.06f, 0.08f), new Vector3(W + 0.24f, 0.12f, 0.22f), frame);
+            Box(root, "Sign Frame Left", new Vector3(-W / 2f - 0.06f, Y, 0.08f), new Vector3(0.12f, H, 0.22f), frame);
+            Box(root, "Sign Frame Right", new Vector3(W / 2f + 0.06f, Y, 0.08f), new Vector3(0.12f, H, 0.22f), frame);
+            foreach (float x in new[] { -2.6f, 2.6f })
+                Box(root, "Sign Post", new Vector3(x, (Y - H / 2f) / 2f, 0.2f), new Vector3(0.22f, Y - H / 2f, 0.22f), frame);
+
+            var board = new GameObject("Canvas", typeof(RectTransform));
+            board.transform.SetParent(root, false);
+            board.transform.localPosition = new Vector3(0f, Y, 0f);
+            board.transform.localScale = Vector3.one * 0.0045f;
             var canvas = board.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            ((RectTransform)board.transform).sizeDelta = new Vector2(1300f, 700f);
+            ((RectTransform)board.transform).sizeDelta = new Vector2(W / 0.0045f, H / 0.0045f);
 
-            var bg = UiChild(board.transform, "Background", Vector2.zero, Vector2.one).gameObject.AddComponent<Image>();
-            bg.color = new Color(0.02f, 0.03f, 0.06f, 0.88f);
-            bg.raycastTarget = false;
-
-            var clock = UiChild(board.transform, "Clock", new Vector2(0f, 0.58f), new Vector2(1f, 0.98f)).gameObject.AddComponent<Text>();
-            clock.font = font; clock.fontSize = 220; clock.fontStyle = FontStyle.Bold;
-            clock.alignment = TextAnchor.MiddleCenter; clock.color = new Color(1f, 0.78f, 0.25f);
+            var clock = UiChild(board.transform, "Clock", new Vector2(0f, 0.52f), new Vector2(1f, 0.99f)).gameObject.AddComponent<Text>();
+            clock.font = font; clock.fontSize = 300; clock.fontStyle = FontStyle.Bold;
+            clock.alignment = TextAnchor.MiddleCenter; clock.color = new Color(1f, 0.72f, 0.18f);
             clock.text = "T-10"; clock.raycastTarget = false;
 
-            var status = UiChild(board.transform, "Status", new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.58f)).gameObject.AddComponent<Text>();
-            status.font = font; status.fontSize = 46; status.alignment = TextAnchor.UpperCenter;
-            status.color = Color.white; status.raycastTarget = false;
+            var line = UiChild(board.transform, "Divider", new Vector2(0.04f, 0.515f), new Vector2(0.96f, 0.522f)).gameObject.AddComponent<Image>();
+            line.color = new Color(1f, 0.72f, 0.18f, 0.5f); line.raycastTarget = false;
+
+            var status = UiChild(board.transform, "Status", new Vector2(0.04f, 0.03f), new Vector2(0.96f, 0.49f)).gameObject.AddComponent<Text>();
+            status.font = font; status.fontSize = 56; status.alignment = TextAnchor.UpperCenter;
+            status.color = new Color(0.92f, 0.94f, 1f); status.raycastTarget = false;
             status.horizontalOverflow = HorizontalWrapMode.Wrap; status.verticalOverflow = VerticalWrapMode.Overflow;
             status.text = "Press the red LAUNCH button.";
             return (clock, status);
@@ -440,6 +544,26 @@ namespace NasaHack.EditorTools
             var button = buttonRoot.AddComponent<LaunchButton>();
             button.launch = launch;
             button.cap = cap.transform;
+
+            // Trim and indicator lights, so it reads as a control console rather than a box.
+            NoCollider(Box(console, "Base Plate", new Vector3(0f, 0.03f, 0f), new Vector3(0.7f, 0.06f, 0.55f), yellow));
+            NoCollider(Box(console, "Kick Stripe", new Vector3(0f, 0.8f, -0.205f), new Vector3(0.56f, 0.05f, 0.01f), yellow));
+            var leds = new[]
+            {
+                mats.Get("LED Green", new Color(0.1f, 0.9f, 0.3f), 0.6f, 0f, false, new Color(0.3f, 3f, 0.8f)),
+                mats.Get("LED Amber", new Color(1f, 0.7f, 0.1f), 0.6f, 0f, false, new Color(3f, 1.8f, 0.2f)),
+                mats.Get("LED Green", new Color(0.1f, 0.9f, 0.3f), 0.6f, 0f, false, new Color(0.3f, 3f, 0.8f)),
+            };
+            for (int i = 0; i < leds.Length; i++)
+            {
+                var led = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                led.name = "Indicator Light";
+                Object.DestroyImmediate(led.GetComponent<Collider>());
+                led.transform.SetParent(buttonRoot.transform, false);
+                led.transform.localPosition = new Vector3(-0.07f + i * 0.07f, 0.008f, 0.17f);
+                led.transform.localScale = new Vector3(0.028f, 0.014f, 0.028f);
+                led.GetComponent<Renderer>().sharedMaterial = leds[i];
+            }
 
             // Label
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -596,7 +720,7 @@ namespace NasaHack.EditorTools
                 }
                 mat.SetTexture("_BaseMap", SoftTexture());
                 // Flames are HDR-bright so the bloom post effect makes them glow.
-                mat.SetColor("_BaseColor", additive ? new Color(2.6f, 2.4f, 2.2f, 1f) : Color.white);
+                mat.SetColor("_BaseColor", additive ? new Color(1.7f, 1.5f, 1.3f, 1f) : Color.white);
                 mat.SetFloat("_Surface", 1f);
                 mat.SetFloat("_Blend", additive ? 2f : 0f);
                 mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);

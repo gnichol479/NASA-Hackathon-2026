@@ -18,7 +18,7 @@ namespace NasaHack.EditorTools
 
         // World directions: player faces +Z = east, so +X = south, -X = north, -Z = west.
         static readonly Vector3 MoonDir = new Vector3(0.355f, 0.375f, -0.857f).normalized; // low in the west-southwest
-        static readonly Vector3 RocketAim = new Vector3(0f, 20f, 90f);                     // middle of the rocket
+        static readonly Vector3 RocketAim = new Vector3(0f, 25f, 90f);                     // middle of the rocket
 
         static void BuildNightAtmosphere(UnityEngine.SceneManagement.Scene scene, Mats mats)
         {
@@ -29,7 +29,7 @@ namespace NasaHack.EditorTools
             moon.name = "Moonlight";
             moon.transform.rotation = Quaternion.LookRotation(-MoonDir);
             moon.color = new Color(0.62f, 0.72f, 1f);
-            moon.intensity = 0.22f;
+            moon.intensity = 0.42f;
             moon.shadows = LightShadows.Soft;
             moon.shadowStrength = 0.6f;
 
@@ -51,9 +51,9 @@ namespace NasaHack.EditorTools
             RenderSettings.skybox = sky;
             RenderSettings.sun = moon;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.075f, 0.095f, 0.16f);
-            RenderSettings.ambientEquatorColor = new Color(0.05f, 0.06f, 0.09f);
-            RenderSettings.ambientGroundColor = new Color(0.02f, 0.02f, 0.025f);
+            RenderSettings.ambientSkyColor = new Color(0.11f, 0.14f, 0.24f);
+            RenderSettings.ambientEquatorColor = new Color(0.07f, 0.085f, 0.13f);
+            RenderSettings.ambientGroundColor = new Color(0.03f, 0.03f, 0.04f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(0.035f, 0.045f, 0.08f);
@@ -70,6 +70,13 @@ namespace NasaHack.EditorTools
             var floodGlow = mats.Get("Floodlight Glow", Color.white, 0.5f, 0f, false, new Color(4f, 3.8f, 3.4f));
             var beacon = mats.Get("Red Beacon", new Color(0.8f, 0.05f, 0.02f), 0.5f, 0f, false, new Color(4f, 0.25f, 0.1f));
             var window = mats.Get("Lit Window", new Color(1f, 0.85f, 0.55f), 0.5f, 0f, false, new Color(1.6f, 1.2f, 0.7f));
+
+            var beamMat = mats.Particle("Light Beam", additive: true);
+            beamMat.SetColor("_BaseColor", new Color(0.62f, 0.68f, 0.85f, 1f));
+            beamMat.SetFloat("_Cull", 0f);
+            var poolMat = mats.Particle("Light Pool", additive: true);
+            poolMat.SetColor("_BaseColor", new Color(1f, 0.8f, 0.55f, 0.24f));
+            var shipGlow = mats.Get("Ship Light", Color.white, 0.5f, 0f, false, new Color(5f, 4.4f, 3.2f));
 
             var lights = new GameObject("Night Lights").transform;
             lights.SetParent(env, false);
@@ -88,10 +95,11 @@ namespace NasaHack.EditorTools
                 spot.transform.SetParent(head, false);
                 spot.type = LightType.Spot;
                 spot.color = new Color(1f, 0.97f, 0.9f);
-                spot.intensity = 3200f;  // URP uses inverse-square falloff; ~45 m to the rocket
+                spot.intensity = 850f;   // URP uses inverse-square falloff; ~45 m to the rocket
                 spot.range = 160f;
-                spot.spotAngle = 42f;
-                spot.innerSpotAngle = 24f;
+                spot.spotAngle = 60f;
+                spot.innerSpotAngle = 34f;
+                AddBeam(head, Vector3.Distance(head.position, RocketAim) + 14f, 13f, beamMat);
                 spot.shadows = LightShadows.None;
             }
 
@@ -107,11 +115,37 @@ namespace NasaHack.EditorTools
             // Red aircraft-warning beacons on everything tall.
             foreach (var p in new[]
             {
-                new Vector3(-24f, 56.2f, 66f), new Vector3(24f, 56.2f, 66f), new Vector3(-24f, 56.2f, 114f), new Vector3(24f, 56.2f, 114f),
+                new Vector3(-26f, 56.2f, 64f), new Vector3(26f, 56.2f, 64f), new Vector3(-26f, 56.2f, 116f), new Vector3(26f, 56.2f, 116f),
                 new Vector3(175f, 52.6f, 110f), new Vector3(163f, 44.6f, 110f), new Vector3(-170f, 31.5f, 160f),
                 new Vector3(-10f, 45.2f, 90f),
             })
-                Sphere(lights, "Red Beacon", p, 0.7f, beacon);
+                Sphere(lights, "Red Beacon", p, 0.55f, beacon);
+
+            // Road lamps: a warm pool of light under each one, and real lights on the nearest pair
+            // so the palms and railing beside the deck catch the glow.
+            foreach (var lampPos in RoadLamps)
+            {
+                float side = Mathf.Sign(lampPos.x);
+                var under = new Vector3(lampPos.x - side * 1.6f, 0.07f, lampPos.z);
+                const float R = 9f;
+                Quad(lights, "Light Pool", poolMat,
+                    under + new Vector3(-R, 0f, -R), under + new Vector3(R, 0f, -R),
+                    under + new Vector3(-R, 0f, R), under + new Vector3(R, 0f, R), 0f);
+                if (lampPos.z < 20f)
+                {
+                    var l = new GameObject("Road Lamp Light").AddComponent<Light>();
+                    l.transform.SetParent(lights, false);
+                    l.transform.position = new Vector3(under.x, LampHeight - 0.4f, under.z);
+                    l.type = LightType.Point;
+                    l.color = new Color(1f, 0.82f, 0.58f);
+                    l.intensity = 34f;
+                    l.range = 20f;
+                }
+            }
+
+            // Ships out on the Atlantic.
+            foreach (var p in new[] { new Vector3(-900f, 7f, 2600f), new Vector3(420f, 6f, 3400f), new Vector3(1500f, 8f, 2900f) })
+                Sphere(lights, "Ship Light", p, 9f, shipGlow);
 
             // Lit windows along the hangars and the blockhouse entrance.
             foreach (var (pos, size) in new[]
@@ -132,6 +166,60 @@ namespace NasaHack.EditorTools
             // The service tower at SLC-17A is lit up with work lights.
             for (float y = 6f; y < 52f; y += 8f)
                 NoCollider(Box(lights, "Service Tower Lights", new Vector3(175f, y + 1f, 110f), new Vector3(13.3f, 0.35f, 13.3f), window));
+        }
+
+        // Faint cone of light in the air, from a floodlight toward the rocket (vertex alpha fades it out).
+        static void AddBeam(Transform head, float length, float endRadius, Material mat)
+        {
+            const int Seg = 28;
+            var verts = new System.Collections.Generic.List<Vector3>();
+            var cols = new System.Collections.Generic.List<Color>();
+            var uvs = new System.Collections.Generic.List<Vector2>();
+            var tris = new System.Collections.Generic.List<int>();
+            const int Rings = 6, Shells = 5;
+            for (int sh = 0; sh < Shells; sh++)
+            {
+                float shell = (sh + 1) / (float)Shells; // 0.2 .. 1 of the full cone width
+                int first = verts.Count;
+                for (int r = 0; r <= Rings; r++)
+                {
+                    float t = r / (float)Rings;
+                    float radius = Mathf.Lerp(0.5f, endRadius, t) * shell;
+                    float alpha = 0.014f * Mathf.Pow(1f - t, 1.4f);
+                    for (int i = 0; i <= Seg; i++)
+                    {
+                        float a = i / (float)Seg * Mathf.PI * 2f;
+                        verts.Add(new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, t * length));
+                        cols.Add(new Color(1f, 1f, 1f, alpha));
+                        uvs.Add(new Vector2(0.5f, 0.5f));
+                    }
+                }
+                for (int r = 0; r < Rings; r++)
+                    for (int i = 0; i < Seg; i++)
+                    {
+                        int a = first + r * (Seg + 1) + i, b = a + Seg + 1;
+                        tris.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 });
+                    }
+            }
+            var mesh = new Mesh { name = "Light Beam" };
+            mesh.SetVertices(verts); mesh.SetColors(cols); mesh.SetUVs(0, uvs); mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            AssetDatabase.AddObjectToAsset(mesh, MeshPath);
+
+            var go = new GameObject("Light Beam");
+            go.transform.SetParent(head, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+        }
+
+        // Shader-style smoothstep: 0 below edge0, 1 above edge1, smooth in between.
+        static float Step(float edge0, float edge1, float x)
+        {
+            float t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - 2f * t);
         }
 
         static void Sphere(Transform parent, string name, Vector3 pos, float size, Material mat)
@@ -233,8 +321,8 @@ namespace NasaHack.EditorTools
                             float n = Mathf.PerlinNoise(x * 0.004f, y * 0.006f) * 0.6f + Mathf.PerlinNoise(x * 0.015f + 40f, y * 0.02f) * 0.4f;
                             float dust = Mathf.Clamp01(Mathf.PerlinNoise(x * 0.01f + 9f, y * 0.012f + 3f) * 1.6f - 0.55f); // dark lanes
                             float core = 1f + 1.8f * Mathf.Pow(Mathf.Max(0f, Vector3.Dot(d, galacticCenter)), 6f);
-                            float k = band * n * core * (1f - dust * 0.8f) * Mathf.SmoothStep(0f, 0.25f, dy);
-                            c += new Color(0.05f, 0.05f, 0.06f) * k;
+                            float k = band * n * core * (1f - dust * 0.8f) * Step(0f, 0.25f, dy);
+                            c += new Color(0.026f, 0.027f, 0.034f) * k;
                         }
                     }
                     px[y * W + x] = c;
@@ -256,18 +344,18 @@ namespace NasaHack.EditorTools
                 float u = 0.5f - Mathf.Atan2(d.z, d.x) / (2f * Mathf.PI); u -= Mathf.Floor(u);
                 float v = 1f - Mathf.Acos(d.y) / Mathf.PI;
                 int sx = Mathf.FloorToInt(u * W), sy = Mathf.FloorToInt(v * H); // rows are bottom-up, like the texture
-                float b = (Mathf.Pow(Rand(), 6f) * 2.2f + 0.12f) * Mathf.SmoothStep(0f, 0.2f, d.y);
+                float b = (Mathf.Pow(Rand(), 10f) * 1.5f + 0.03f + 0.05f * Rand()) * Step(0f, 0.2f, d.y);
                 var tint = Color.Lerp(new Color(0.75f, 0.85f, 1f), new Color(1f, 0.85f, 0.68f), Rand());
                 Add(sx, sy, tint * b);
-                if (b > 0.4f)
+                if (b > 0.75f)
                 {
-                    var halo = tint * b * 0.3f;
+                    var halo = tint * b * 0.18f;
                     Add(sx + 1, sy, halo); Add(sx - 1, sy, halo); Add(sx, sy + 1, halo); Add(sx, sy - 1, halo);
                 }
             }
 
             // First-quarter moon (drawn larger than life so it reads in VR).
-            float moonRadius = 1.3f * Mathf.Deg2Rad;
+            float moonRadius = 1.9f * Mathf.Deg2Rad;
             // First quarter: sunlight hits the moon from 90° to the side (from below the western horizon),
             // so exactly half of the disc is lit.
             var sunDir = Vector3.ProjectOnPlane(new Vector3(-0.6f, -0.55f, -0.6f), MoonDir).normalized;
@@ -290,16 +378,16 @@ namespace NasaHack.EditorTools
                         var o = (d - MoonDir * Vector3.Dot(d, MoonDir)) / Mathf.Sin(moonRadius);
                         float rr = Mathf.Clamp01(o.magnitude);
                         var nrm = o + (-MoonDir) * Mathf.Sqrt(1f - rr * rr);
-                        float lit = Mathf.SmoothStep(-0.05f, 0.08f, Vector3.Dot(nrm, sunDir));
+                        float lit = Step(-0.05f, 0.08f, Vector3.Dot(nrm, sunDir));
                         float maria = 0.8f + 0.2f * Mathf.PerlinNoise(o.x * 3f + 5f, o.y * 3f + 2f);
-                        var c = Color.Lerp(new Color(0.02f, 0.025f, 0.04f), new Color(1.0f, 0.97f, 0.88f) * maria, lit);
-                        float edge = Mathf.SmoothStep(moonRadius, moonRadius * 0.92f, ang);
+                        var c = Color.Lerp(px[y * W + x], new Color(1.0f, 0.97f, 0.88f) * maria, lit);
+                        float edge = 1f - Step(moonRadius * 0.92f, moonRadius, ang);
                         px[y * W + x] = Color.Lerp(px[y * W + x], c, edge);
                     }
                     else
                     {
-                        float glow = Mathf.SmoothStep(moonRadius * 1.6f, moonRadius, ang);
-                        px[y * W + x] += new Color(0.06f, 0.065f, 0.08f) * glow;
+                        float glow = 1f - Step(moonRadius, moonRadius * 1.6f, ang);
+                        px[y * W + x] += new Color(0.035f, 0.04f, 0.055f) * glow * glow;
                     }
                 }
             }
