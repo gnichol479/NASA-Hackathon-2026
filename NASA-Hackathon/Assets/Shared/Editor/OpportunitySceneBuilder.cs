@@ -19,7 +19,9 @@ namespace NasaHack.EditorTools
     {
         const string ArrivalPath = "Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity";
         const string LegacyPath = "Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity";
-        const string ModelPath = "Assets/Opportunity/Models/Opportunity-NASA.glb";
+        // Detailed textured model (from Dominic). Faces the player when turned 180°.
+        const string ModelPath = "Assets/Opportunity/Models/Mars Exploration Rover - Spirit and Opportunity.fbx";
+        static readonly Quaternion ModelRotation = Quaternion.Euler(0f, 180f, 0f);
         const string SettingsDir = "Assets/Shared/Settings";
         const string TmpEssentials = "Packages/com.unity.textmeshpro/Package Resources/TMP Essential Resources.unitypackage";
 
@@ -216,19 +218,180 @@ namespace NasaHack.EditorTools
         {
             var root = new GameObject("Opportunity").transform;
             root.position = RoverPosition;
+            AddModel(root, model, dust, out bounds);
+            return root;
+        }
 
+        // Instantiates the model under root, centered on root, standing on the ground.
+        // hiddenParts: renderer paths to switch off (leftover Blender objects in the FBX).
+        // Models with an animation are posed at whichever end of the clip is flatter (panels deployed).
+        // fitWidth: scale to real rover width. The detailed FBX is already in meters, so it stays native.
+        static GameObject AddModel(Transform root, GameObject model, float dust, out Bounds bounds, string[] hiddenParts = null, bool fitWidth = true)
+        {
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(model, root);
             instance.name = "Model";
+            instance.transform.localRotation = ModelRotation;
+
+            foreach (var part in hiddenParts ?? new string[0])
+            {
+                var t = instance.transform.Find(part);
+                var r = t != null ? t.GetComponent<Renderer>() : null;
+                if (r != null) r.enabled = false;
+            }
+
+            PoseFlattest(instance, model);
 
             bounds = WorldBounds(instance);
-            float scale = RoverWidth / Mathf.Max(bounds.size.x, bounds.size.z);
+            float scale = fitWidth ? RoverWidth / Mathf.Max(bounds.size.x, bounds.size.z) : 1f;
             instance.transform.localScale *= scale;
             bounds = WorldBounds(instance);
-            instance.transform.position += new Vector3(RoverPosition.x - bounds.center.x, -bounds.min.y, RoverPosition.z - bounds.center.z);
+            instance.transform.position += new Vector3(root.position.x - bounds.center.x, root.position.y - bounds.min.y, root.position.z - bounds.center.z);
             bounds = WorldBounds(instance);
+            Debug.Log($"[NasaHack] Model scale x{scale:0.###}, size {bounds.size.x:0.00} x {bounds.size.y:0.00} x {bounds.size.z:0.00} m");
 
             instance.AddComponent<DustCover>().amount = dust;
-            return root;
+            return instance;
+        }
+
+        static void PoseFlattest(GameObject instance, GameObject model)
+        {
+            var clip = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(model))
+                .OfType<AnimationClip>()
+                .FirstOrDefault(c => !c.name.StartsWith("__preview__"));
+            if (clip == null) return;
+
+            clip.SampleAnimation(instance, 0f);
+            float startHeight = WorldBounds(instance).size.y;
+            clip.SampleAnimation(instance, clip.length);
+            float endHeight = WorldBounds(instance).size.y;
+            float time = endHeight <= startHeight ? clip.length : 0f;
+            clip.SampleAnimation(instance, time);
+            instance.transform.localRotation = ModelRotation;
+            Debug.Log($"[NasaHack] Posed '{clip.name}' at {time:0.##}s (height start {startHeight:0.00} m, end {endHeight:0.00} m)");
+        }
+
+        const string LaunchPath = "Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity";
+
+        // Re-runnable: always replaces Opportunity/Model with a fresh detailed model.
+        [MenuItem("NasaHack/Swap Arrival + Legacy to Detailed Rover")]
+        public static void SwapToDetailedModel()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first.");
+                return;
+            }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            if (model == null)
+            {
+                Debug.LogError("[NasaHack] Detailed model not found at " + ModelPath);
+                return;
+            }
+
+            var hidden = HiddenPartsFromLaunch(model);
+
+            foreach (var path in new[] { ArrivalPath, LegacyPath })
+            {
+                var scene = EditorSceneManager.OpenScene(path);
+                var root = GameObject.Find("Opportunity");
+                var old = root != null ? root.transform.Find("Model") : null;
+                if (old == null)
+                {
+                    Debug.LogWarning("[NasaHack] No Opportunity/Model in " + path + ", skipped.");
+                    continue;
+                }
+
+                var oldDust = old.GetComponent<DustCover>();
+                float dust = oldDust != null ? oldDust.amount : 0.5f;
+                int index = old.GetSiblingIndex();
+                Object.DestroyImmediate(old.gameObject);
+
+                var instance = AddModel(root.transform, model, dust, out _, hidden, fitWidth: false);
+                instance.transform.SetSiblingIndex(index);
+                SnapHotspotsToParts(root.transform, instance.transform);
+                EditorSceneManager.SaveScene(scene);
+                Debug.Log("[NasaHack] Swapped to detailed model: " + path);
+            }
+            EditorSceneManager.OpenScene(ArrivalPath);
+        }
+
+        // Dominic already hid the leftover Blender objects in Launch. Reuse his choices.
+        // Falls back to hiding "Cube*" and "_Hemi*" objects.
+        static string[] HiddenPartsFromLaunch(GameObject model)
+        {
+            var launch = EditorSceneManager.OpenScene(LaunchPath, OpenSceneMode.Additive);
+            try
+            {
+                foreach (var go in launch.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Transform>(true)).Select(t => t.gameObject))
+                {
+                    if (!PrefabUtility.IsAnyPrefabInstanceRoot(go) || PrefabUtility.GetCorrespondingObjectFromSource(go) != model) continue;
+                    var paths = go.GetComponentsInChildren<Renderer>(true)
+                        .Where(r => !r.enabled)
+                        .Select(r => AnimationUtility.CalculateTransformPath(r.transform, go.transform))
+                        .ToArray();
+                    Debug.Log($"[NasaHack] Hiding {paths.Length} parts, copied from Launch: {string.Join(", ", paths)}");
+                    return paths;
+                }
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(launch, true);
+            }
+
+            var fallback = model.GetComponentsInChildren<Renderer>(true)
+                .Where(r => r.name.StartsWith("Cube") || r.name.StartsWith("_Hemi"))
+                .Select(r => AnimationUtility.CalculateTransformPath(r.transform, model.transform))
+                .ToArray();
+            Debug.Log($"[NasaHack] Launch model not found. Hiding {fallback.Length} Cube/_Hemi parts.");
+            return fallback;
+        }
+
+        // Moves the Arrival hotspots onto the named parts of the detailed model.
+        static void SnapHotspotsToParts(Transform rover, Transform model)
+        {
+            var hotspots = rover.Find("Hotspots");
+            if (hotspots == null) return;
+            Snap(hotspots, "Hotspot - Solar panels", NearestPart(model, "panels_"), onTop: true);
+            Snap(hotspots, "Hotspot - Pancam (panoramic camera)", FindPart(model, "mast_cam") ?? FindPart(model, "mast_top"), onTop: true);
+            Snap(hotspots, "Hotspot - Robotic arm", FindPart(model, "arm_turret") ?? FindPart(model, "arm_wrist"), onTop: false);
+            Snap(hotspots, "Hotspot - Wheels", NearestPart(model, "_wheel"), onTop: false);
+        }
+
+        // onTop: just above the part. Otherwise on the side of the part facing the player.
+        static void Snap(Transform hotspots, string name, Transform part, bool onTop)
+        {
+            var hotspot = hotspots.Find(name);
+            if (hotspot == null || part == null) return;
+            var renderers = part.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
+            if (renderers.Length == 0) return;
+            var b = renderers[0].bounds;
+            foreach (var r in renderers.Skip(1)) b.Encapsulate(r.bounds);
+
+            if (onTop)
+            {
+                hotspot.position = new Vector3(b.center.x, b.max.y + 0.06f, b.center.z);
+                return;
+            }
+            var toPlayer = Head - b.center;
+            toPlayer.y = 0f;
+            toPlayer.Normalize();
+            hotspot.position = b.center + toPlayer * (Mathf.Max(b.extents.x, b.extents.z) + 0.06f);
+        }
+
+        static Transform FindPart(Transform model, string name)
+        {
+            return model.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == name);
+        }
+
+        // The part whose name contains `fragment` that is closest to the player.
+        static Transform NearestPart(Transform model, string fragment)
+        {
+            return model.GetComponentsInChildren<Transform>(true)
+                .Where(t => t.name.Contains(fragment) && t.GetComponentsInChildren<Renderer>().Any(r => r.enabled))
+                .OrderBy(t => Vector3.Distance(t.position, Head))
+                .FirstOrDefault();
         }
 
         // Top of the submesh that uses the "SolarArrays" material, if the model has one.
@@ -275,7 +438,7 @@ namespace NasaHack.EditorTools
 
         static Bounds WorldBounds(GameObject go)
         {
-            var renderers = go.GetComponentsInChildren<Renderer>();
+            var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
             var b = renderers[0].bounds;
             foreach (var r in renderers.Skip(1)) b.Encapsulate(r.bounds);
             return b;
