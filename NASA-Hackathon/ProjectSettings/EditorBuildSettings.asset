@@ -4,5 +4,25 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
-  m_configObjects: {}
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Shared/Scenes/TitleScreen.unity
+    guid: 9fc0d4010bbf28b4594072e72b8655ab
+  - enabled: 1
+    path: Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity
+    guid: 36072a8b939aea740b1dc07f36c8dce4
+  - enabled: 1
+    path: Assets/Opportunity/Origin/Scenes/Opportunity-Origin.unity
+    guid: 0fbe930d63b53b5e2a4d72f31597afcc
+  - enabled: 1
+    path: Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity
+    guid: adfaad8876b733549b139234c09e785a
+  - enabled: 1
+    path: Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity
+    guid: 1f015f67322eecbae9b232ee8c8a819d
+  - enabled: 1
+    path: Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity
+    guid: 5dd167eb08d333d4d87f0e48979acb35
+  m_configObjects:
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11869147fc86e06a692ec91f4e4f958a, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: ec8c2195195c8f3e5b71021be2501364, type: 2}
