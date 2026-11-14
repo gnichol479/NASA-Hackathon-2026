@@ -27,6 +27,8 @@ namespace NasaHack
         [Tooltip("Hide the button on the last beat instead of showing Finish.")]
         public bool hideButtonOnLastBeat;
         public UnityEvent onFinished = new UnityEvent();
+        [Tooltip("Desktop testing shortcut for the Next button.")]
+        public KeyCode nextKey = KeyCode.Return;
 
         [Header("Wiring (built by the scene builder)")]
         public TMP_Text titleText;
@@ -51,6 +53,14 @@ namespace NasaHack
         {
             if (beats.Length > 0) Show(0);
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        void Update()
+        {
+            if (Input.GetKeyDown(nextKey) && nextButton.gameObject.activeInHierarchy && nextButton.interactable)
+                Continue();
+        }
+#endif
 
         public void Continue()
         {

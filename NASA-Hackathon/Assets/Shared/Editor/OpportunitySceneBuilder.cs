@@ -31,6 +31,11 @@ namespace NasaHack.EditorTools
         [MenuItem("NasaHack/Build Opportunity Arrival + Legacy")]
         public static void Build()
         {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first, then run the builder.");
+                return;
+            }
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             if (!AssetDatabase.IsValidFolder("Assets/TextMesh Pro"))

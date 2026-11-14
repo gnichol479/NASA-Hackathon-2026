@@ -14,6 +14,8 @@ namespace NasaHack
         [Tooltip("Continues the story after the first 'No response'.")]
         public NarrationPanel narration;
         public AudioClip transmitSound;
+        [Tooltip("Desktop testing shortcut for the Send button.")]
+        public KeyCode sendKey = KeyCode.U;
 
         [Header("Wiring (built by the scene builder)")]
         public Button button;
@@ -29,6 +31,13 @@ namespace NasaHack
             button.onClick.AddListener(Send);
             status.text = idleText;
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        void Update()
+        {
+            if (Input.GetKeyDown(sendKey) && button.interactable) Send();
+        }
+#endif
 
         public void Send()
         {
