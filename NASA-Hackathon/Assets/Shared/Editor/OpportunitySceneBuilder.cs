@@ -260,17 +260,18 @@ namespace NasaHack.EditorTools
                 .FirstOrDefault(c => !c.name.StartsWith("__preview__"));
             if (clip == null) return;
 
+            // Deployed rover = panels spread out = biggest footprint.
             clip.SampleAnimation(instance, 0f);
-            float startHeight = WorldBounds(instance).size.y;
+            var start = WorldBounds(instance).size;
             clip.SampleAnimation(instance, clip.length);
-            float endHeight = WorldBounds(instance).size.y;
-            float time = endHeight <= startHeight ? clip.length : 0f;
+            var end = WorldBounds(instance).size;
+            float time = end.x * end.z >= start.x * start.z ? clip.length : 0f;
             clip.SampleAnimation(instance, time);
             instance.transform.localRotation = ModelRotation;
-            Debug.Log($"[NasaHack] Posed '{clip.name}' at {time:0.##}s (height start {startHeight:0.00} m, end {endHeight:0.00} m)");
+            Debug.Log($"[NasaHack] Posed '{clip.name}' at {time:0.##}s of {clip.length:0.##}s " +
+                      $"(start {start.x:0.00}x{start.y:0.00}x{start.z:0.00} m, end {end.x:0.00}x{end.y:0.00}x{end.z:0.00} m)");
         }
 
-        const string LaunchPath = "Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity";
 
         // Re-runnable: always replaces Opportunity/Model with a fresh detailed model.
         [MenuItem("NasaHack/Swap Arrival + Legacy to Detailed Rover")]
@@ -290,7 +291,7 @@ namespace NasaHack.EditorTools
                 return;
             }
 
-            var hidden = HiddenPartsFromLaunch(model);
+            var hidden = HiddenParts(model);
 
             foreach (var path in new[] { ArrivalPath, LegacyPath })
             {
@@ -317,35 +318,78 @@ namespace NasaHack.EditorTools
             EditorSceneManager.OpenScene(ArrivalPath);
         }
 
-        // Dominic already hid the leftover Blender objects in Launch. Reuse his choices.
-        // Falls back to hiding "Cube*" and "_Hemi*" objects.
-        static string[] HiddenPartsFromLaunch(GameObject model)
-        {
-            var launch = EditorSceneManager.OpenScene(LaunchPath, OpenSceneMode.Additive);
-            try
-            {
-                foreach (var go in launch.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<Transform>(true)).Select(t => t.gameObject))
-                {
-                    if (!PrefabUtility.IsAnyPrefabInstanceRoot(go) || PrefabUtility.GetCorrespondingObjectFromSource(go) != model) continue;
-                    var paths = go.GetComponentsInChildren<Renderer>(true)
-                        .Where(r => !r.enabled)
-                        .Select(r => AnimationUtility.CalculateTransformPath(r.transform, go.transform))
-                        .ToArray();
-                    Debug.Log($"[NasaHack] Hiding {paths.Length} parts, copied from Launch: {string.Join(", ", paths)}");
-                    return paths;
-                }
-            }
-            finally
-            {
-                EditorSceneManager.CloseScene(launch, true);
-            }
+        const string FlashbackPath = "Assets/Opportunity/NASA-Headquarters/LastSignalFlashback/Scenes/Opportunity-Flashback.unity";
+        const string OriginPath = "Assets/Opportunity/Origin/Scenes/Opportunity-Origin.unity";
 
-            var fallback = model.GetComponentsInChildren<Renderer>(true)
-                .Where(r => r.name.StartsWith("Cube") || r.name.StartsWith("_Hemi"))
-                .Select(r => AnimationUtility.CalculateTransformPath(r.transform, model.transform))
-                .ToArray();
-            Debug.Log($"[NasaHack] Launch model not found. Hiding {fallback.Length} Cube/_Hemi parts.");
-            return fallback;
+        // Points Arrival's "See how I got here" at Gibson's flashback scene and puts that scene
+        // in Build Settings in place of the empty Origin placeholder.
+        [MenuItem("NasaHack/Link Arrival to Gibson's Flashback")]
+        public static void LinkFlashback()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first.");
+                return;
+            }
+            if (!File.Exists(FlashbackPath))
+            {
+                Debug.LogError("[NasaHack] Gibson's scene not found at " + FlashbackPath);
+                return;
+            }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var scene = EditorSceneManager.OpenScene(ArrivalPath);
+            var flow = Object.FindObjectOfType<LoadNextScene>();
+            if (flow == null)
+            {
+                Debug.LogError("[NasaHack] No Scene Flow (LoadNextScene) in " + ArrivalPath);
+                return;
+            }
+            flow.nextScene = Path.GetFileNameWithoutExtension(FlashbackPath);
+            EditorUtility.SetDirty(flow);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+
+            var scenes = EditorBuildSettings.scenes.ToList();
+            scenes.RemoveAll(s => s.path == OriginPath || s.path == FlashbackPath);
+            int arrival = scenes.FindIndex(s => s.path == ArrivalPath);
+            scenes.Insert(arrival >= 0 ? arrival + 1 : scenes.Count, new EditorBuildSettingsScene(FlashbackPath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+
+            Debug.Log("[NasaHack] Arrival now loads " + flow.nextScene + ". Build Settings: " +
+                      string.Join(" -> ", scenes.Select(s => Path.GetFileNameWithoutExtension(s.path))));
+        }
+
+        // Leftover Blender objects in the detailed FBX (proxy cubes and a big "_root" block).
+        // Copied from what Dominic hid in his Launch scene.
+        static readonly string[] KnownHiddenParts =
+        {
+            "_root",
+            "_root/body/arm_mount/arm_base/Cube.010",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008/arm_joint2/Cube.007",
+            "_root/body/mast/Cube.012",
+            "_root/body/panels_left/panels_left_front/Cube.006",
+            "_root/body/panels_right/panels_right_front/Cube.029",
+            "_root/body/suspension_left_front/Cube.025",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022/suspension_left_front_axl/Cube.005",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/Cube.003",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021/suspension_left_rear_axl/Cube.004",
+            "_root/body/suspension_right_front/Cube.000",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001/suspension_right_front_axl/Cube.009",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/Cube.002",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020/suspension_right_rear_axl/Cube",
+        };
+
+        static string[] HiddenParts(GameObject model)
+        {
+            var paths = KnownHiddenParts.Where(p => model.transform.Find(p) != null).ToArray();
+            Debug.Log($"[NasaHack] Hiding {paths.Length}/{KnownHiddenParts.Length} leftover parts.");
+            return paths;
         }
 
         // Moves the Arrival hotspots onto the named parts of the detailed model.

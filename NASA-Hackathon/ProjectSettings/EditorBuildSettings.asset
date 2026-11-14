@@ -12,8 +12,8 @@ EditorBuildSettings:
     path: Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity
     guid: 36072a8b939aea740b1dc07f36c8dce4
   - enabled: 1
-    path: Assets/Opportunity/Origin/Scenes/Opportunity-Origin.unity
-    guid: 0fbe930d63b53b5e2a4d72f31597afcc
+    path: Assets/Opportunity/NASA-Headquarters/LastSignalFlashback/Scenes/Opportunity-Flashback.unity
+    guid: 79b2deb9f65a4481bd3dd48db69f3ef7
   - enabled: 1
     path: Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity
     guid: adfaad8876b733549b139234c09e785a
