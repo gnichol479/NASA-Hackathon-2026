@@ -51,7 +51,25 @@ namespace NasaHack
         [TextArea(1, 3)] public string liftoffMessage = "LIFTOFF!\nDelta II lifts off carrying the Opportunity rover to Mars.";
         [TextArea(1, 3)] public string pitchMessage = "Pitching over and heading east, out over the Atlantic Ocean.\nSix ground-lit GEM-46 boosters at full thrust.";
         [TextArea(1, 3)] public string stagingMessage = "The six ground-lit boosters burn out and drop away.\nThe three air-lit boosters ignite!";
-        [TextArea(1, 4)] public string cruiseMessage = "Opportunity is on its way to Mars!\nLanding: Meridiani Planum, January 25, 2004.\n\n(Real launch timeline sped up.)";
+        [TextArea(1, 4)] public string cruiseMessage = "Opportunity is on its way to Mars!\nLanding: Meridiani Planum, January 25, 2004 UTC (January 24 local time).\n\n(Real launch timeline sped up.)";
+
+        [Header("Narration")]
+        [TextArea(2, 6)] public string briefingNarrationText;
+        [TextArea(1, 3)] public string countdownNarrationText;
+        [TextArea(1, 2)] public string internalPowerNarrationText;
+        [TextArea(1, 2)] public string ignitionNarrationText;
+        [TextArea(1, 3)] public string liftoffNarrationText;
+        [TextArea(1, 3)] public string pitchNarrationText;
+        [TextArea(1, 3)] public string stagingNarrationText;
+        [TextArea(1, 4)] public string cruiseNarrationText;
+        public AudioClip briefingNarration;
+        public AudioClip countdownNarration;
+        public AudioClip internalPowerNarration;
+        public AudioClip ignitionNarration;
+        public AudioClip liftoffNarration;
+        public AudioClip pitchNarration;
+        public AudioClip stagingNarration;
+        public AudioClip cruiseNarration;
 
         public bool Launched { get; private set; }
 
@@ -60,14 +78,44 @@ namespace NasaHack
         bool flying;
         float ignitionTime = -1f;
         Quaternion padRotation;
+        AudioSource narrationSource;
 
         void Start()
         {
+            EnsureNarrationText();
+            // RocketRumble uses OnAudioFilterRead on the Launch Complex object. Keep narration
+            // on a child source so Unity does not invoke that stateful filter for two sources.
+            narrationSource = NarrationPlayback.CreateSource(this);
             SetClock("T-" + countdownSeconds.ToString("00"));
             SetStatus(idleMessage);
+            PlayNarration(briefingNarration);
             if (engineLight) engineLight.intensity = 0f;
             if (rocket) padRotation = rocket.rotation;
             DynamicGI.UpdateEnvironment(); // refresh sky reflections (ocean, metal) from the skybox
+        }
+
+        /// <summary>Fills scene-specific, NASA-sourced briefing copy and milestone captions for the editor generator.</summary>
+        public void EnsureNarrationText()
+        {
+            if (string.IsNullOrWhiteSpace(briefingNarrationText))
+            {
+                if (idleMessage.IndexOf("OPPORTUNITY", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    briefingNarrationText = "NASA's Mars Exploration Rover-B, Opportunity, launched aboard a Delta II 7925H from Cape Canaveral Air Force Station on July 7, 2003, at 11:18 p.m. Eastern Daylight Time. Its mission was to investigate evidence of past water on Mars. Press the red launch button when you are ready. This is a shortened educational reenactment.";
+                else if (idleMessage.IndexOf("INSIGHT", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    briefingNarrationText = "NASA's InSight lander launched aboard an Atlas V 401 from Vandenberg Air Force Base in California on May 5, 2018. The launch window opened at 4:05 a.m. Pacific Daylight Time. InSight was sent to study the deep interior of Mars. Press the red launch button when you are ready. This is a shortened educational reenactment.";
+                else
+                    briefingNarrationText = idleMessage;
+            }
+
+            if (string.IsNullOrWhiteSpace(countdownNarrationText))
+                countdownNarrationText = "Ten. Nine. Eight. Seven.";
+            if (string.IsNullOrWhiteSpace(internalPowerNarrationText))
+                internalPowerNarrationText = "Launch vehicle on internal power.";
+            if (string.IsNullOrWhiteSpace(ignitionNarrationText)) ignitionNarrationText = ignitionMessage;
+            if (string.IsNullOrWhiteSpace(liftoffNarrationText)) liftoffNarrationText = liftoffMessage;
+            if (string.IsNullOrWhiteSpace(pitchNarrationText)) pitchNarrationText = pitchMessage;
+            if (string.IsNullOrWhiteSpace(stagingNarrationText)) stagingNarrationText = stagingMessage;
+            if (string.IsNullOrWhiteSpace(cruiseNarrationText)) cruiseNarrationText = cruiseMessage;
         }
 
 #if ENABLE_LEGACY_INPUT_MANAGER
@@ -93,11 +141,20 @@ namespace NasaHack
             for (int t = countdownSeconds; t > 0; t--)
             {
                 SetClock("T-" + t.ToString("00"));
-                if (t == countdownSeconds) SetStatus("Countdown started. All systems go.");
-                if (t == 6) SetStatus("Launch vehicle on internal power.");
+                if (t == countdownSeconds)
+                {
+                    SetStatus("Countdown started. All systems go.");
+                    PlayNarration(countdownNarration);
+                }
+                if (t == 6)
+                {
+                    SetStatus("Launch vehicle on internal power.");
+                    PlayNarration(internalPowerNarration);
+                }
                 if (t == 3)
                 {
                     SetStatus(ignitionMessage);
+                    PlayNarration(ignitionNarration);
                     Play(mainEngineFlames);
                     ignitionTime = Time.time;
                     if (rumble) rumble.target = 0.35f;
@@ -108,6 +165,7 @@ namespace NasaHack
             // ---- Liftoff
             SetClock("T+00");
             SetStatus(liftoffMessage);
+            PlayNarration(liftoffNarration);
             Play(groundLitFlames);
             Play(liftoffEffects);
             if (padSmoke) padSmoke.Play();
@@ -125,6 +183,7 @@ namespace NasaHack
                 {
                     pitched = true;
                     SetStatus(pitchMessage);
+                    PlayNarration(pitchNarration);
                 }
                 if (!jettisoned && flightTime > 17f)
                 {
@@ -132,17 +191,21 @@ namespace NasaHack
                     JettisonGroundLitBoosters();
                     Play(airLitFlames);
                     SetStatus(stagingMessage);
+                    PlayNarration(stagingNarration);
                 }
                 if (!cruising && flightTime > 25f)
                 {
                     cruising = true;
                     if (rumble) rumble.target = 0.3f;
                     SetStatus(cruiseMessage);
+                    PlayNarration(cruiseNarration);
                 }
                 yield return null;
             }
 
             if (rumble) rumble.target = 0f;
+            // The educational flight is compressed, but the final explanation must finish.
+            while (narrationSource != null && narrationSource.isPlaying) yield return null;
             if (sceneFlow) sceneFlow.Load();
         }
 
@@ -204,5 +267,11 @@ namespace NasaHack
 
         void SetClock(string s) { if (clockText) clockText.text = s; }
         void SetStatus(string s) { if (statusText) statusText.text = s; }
+
+        void PlayNarration(AudioClip clip)
+        {
+            if (clip == null || narrationSource == null) return;
+            NarrationPlayback.Play(narrationSource, clip);
+        }
     }
 }

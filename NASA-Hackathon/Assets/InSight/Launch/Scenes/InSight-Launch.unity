@@ -5747,7 +5747,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 56
     m_Alignment: 0
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -28264,7 +28264,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 110
     m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -33481,7 +33481,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 56
     m_Alignment: 1
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -50746,7 +50746,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 300
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -61205,7 +61205,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 90
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -61927,6 +61927,41 @@ MonoBehaviour:
 
 
     (Real launch timeline sped up.)'
+  briefingNarrationText: NASA's InSight lander launched aboard an Atlas V 401 from
+    Vandenberg Air Force Base in California on May 5, 2018. The launch window opened
+    at 4:05 a.m. Pacific Daylight Time. InSight was sent to study the deep interior
+    of Mars. Press the red launch button when you are ready. This is a shortened
+    educational reenactment.
+  countdownNarrationText: Ten. Nine. Eight. Seven.
+  internalPowerNarrationText: Launch vehicle on internal power.
+  ignitionNarrationText: RD-180 main engine start!
+  liftoffNarrationText: 'LIFTOFF!
+
+    Atlas V lifts off carrying the InSight lander
+    to Mars.'
+  pitchNarrationText: 'Heading south over the Pacific Ocean.
+
+    The first launch
+    to another planet from the West Coast.'
+  stagingNarrationText: 'Climbing into the fog.
+
+    On launch morning, thick fog
+    hid the rocket from most people watching.'
+  cruiseNarrationText: 'InSight is on its way to Mars!
+
+    Landing: Elysium Planitia,
+    November 26, 2018.
+
+
+    (Real launch timeline sped up.)'
+  briefingNarration: {fileID: 8300000, guid: 7c5b0f204b5f3fc438b8aab6ea1fec09, type: 3}
+  countdownNarration: {fileID: 8300000, guid: e8bcedf54960df04c97022e0f4494804, type: 3}
+  internalPowerNarration: {fileID: 8300000, guid: 9ca15312ac3c9f84c999ad0fda15f7dd, type: 3}
+  ignitionNarration: {fileID: 8300000, guid: 4bcb1e49bfdfb0a48b00701a1e499621, type: 3}
+  liftoffNarration: {fileID: 8300000, guid: f148785946e909849a44f76382b1d7ae, type: 3}
+  pitchNarration: {fileID: 8300000, guid: 97fccc7031966d641a0c4fce9b828e1d, type: 3}
+  stagingNarration: {fileID: 8300000, guid: 8364f08906d0bdc498f2613017a7984c, type: 3}
+  cruiseNarration: {fileID: 8300000, guid: 693b137933bae6f4192bd48d5dc00cc4, type: 3}
 --- !u!114 &1792214459
 MonoBehaviour:
   m_ObjectHideFlags: 0

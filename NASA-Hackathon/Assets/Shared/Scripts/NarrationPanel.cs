@@ -42,8 +42,7 @@ namespace NasaHack
 
         void Awake()
         {
-            voice = gameObject.AddComponent<AudioSource>();
-            voice.playOnAwake = false;
+            voice = NarrationPlayback.CreateSource(this);
             nextButton.onClick.AddListener(Continue);
             foreach (var beat in beats)
                 if (beat.showWhileActive != null) beat.showWhileActive.SetActive(false);
@@ -98,8 +97,7 @@ namespace NasaHack
             voice.Stop();
             if (beat.voice != null)
             {
-                voice.clip = beat.voice;
-                voice.Play();
+                NarrationPlayback.Play(voice, beat.voice);
             }
         }
     }

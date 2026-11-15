@@ -38,6 +38,7 @@ namespace NasaHack.EditorTools
 
         static readonly string[] Scenes =
         {
+            "Assets/Shared/Scenes/TitleScreen-Night.unity",
             "Assets/Shared/Scenes/TitleScreen.unity",
             "Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity",
             "Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity",

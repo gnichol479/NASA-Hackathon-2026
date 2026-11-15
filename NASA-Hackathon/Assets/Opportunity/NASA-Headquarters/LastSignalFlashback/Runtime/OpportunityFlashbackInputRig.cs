@@ -100,7 +100,7 @@ namespace LastSignal.OpportunityFlashback
             if (owner == null || playerCamera == null)
                 return;
 
-            UpdateHeadPose();
+            UpdateHeadTrackingState();
             UpdateMovement();
 
             InputDevice leftDevice = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
@@ -120,23 +120,13 @@ namespace LastSignal.OpportunityFlashback
                 UpdateEditorMouseFallback();
         }
 
-        private void UpdateHeadPose()
+        private void UpdateHeadTrackingState()
         {
             InputDevice head = InputDevices.GetDeviceAtXRNode(XRNode.Head);
-            if (head.isValid && head.TryGetFeatureValue(CommonUsages.devicePosition, out Vector3 localPosition))
-            {
-                head.TryGetFeatureValue(CommonUsages.deviceRotation, out Quaternion localRotation);
-                if (localPosition.y < 0.35f)
-                    localPosition.y += 1.62f;
-                playerCamera.transform.localPosition = localPosition;
-                playerCamera.transform.localRotation = localRotation;
-                hasHeadTracking = true;
-            }
-            else
-            {
-                hasHeadTracking = false;
-                playerCamera.transform.localPosition = new Vector3(0f, 1.62f, 0f);
-            }
+            // TrackedPoseDriver on the XR camera is the sole pose writer. This adapter only
+            // checks whether a real head pose is available so its desktop fallback can yield.
+            hasHeadTracking = head.isValid &&
+                head.TryGetFeatureValue(CommonUsages.isTracked, out bool tracked) && tracked;
         }
 
         private void UpdateControllerPose(InputDevice device, bool isTracked, Transform pose, bool leftHand)

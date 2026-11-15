@@ -33,9 +33,9 @@ namespace NasaHack.EditorTools
         // One card per mission, left to right. Each button starts that mission's first scene.
         static readonly (string name, string kind, string blurb)[] Missions =
         {
-            ("Opportunity", "Mars rover", "Built to last 90 days.\nDrove for almost 15 years."),
+            ("Opportunity", "Mars rover", "Built for 90 sols.\nDrove for almost 15 years."),
             ("InSight", "Mars lander", "Listened for marsquakes to study\nthe inside of Mars."),
-            ("Ingenuity", "Mars helicopter", "The first aircraft to fly\non another planet."),
+            ("Ingenuity", "Mars helicopter", "First powered, controlled flight\non another planet."),
         };
 
         static readonly Vector3 Head = new Vector3(0f, 1.6f, 0f);
@@ -189,7 +189,9 @@ namespace NasaHack.EditorTools
 
             Line(title.transform, "Abandoned", "ABANDONED", 1700f, new Color(1f, 0.97f, 0.92f), 0.52f, 1f, 18f, FontStyles.Bold);
             Line(title.transform, "But Not Forgotten", "BUT NOT FORGOTTEN", 700f, UiFactory.Accent, 0.26f, 0.52f, 34f, FontStyles.Bold);
-            Line(title.transform, "Tagline", "A VR field trip to the machines NASA left behind", 300f, new Color(0.85f, 0.87f, 0.95f), 0.06f, 0.24f, 6f, FontStyles.Normal);
+            var tagline = Line(title.transform, "Tagline", "A VR field trip to the machines NASA left behind", 300f, new Color(0.85f, 0.87f, 0.95f), 0.06f, 0.24f, 6f, FontStyles.Normal);
+            var titleNarration = tagline.gameObject.AddComponent<NasaHack.SceneIntroNarrator>();
+            titleNarration.narrationText = "Abandoned, but not forgotten. A VR field trip to the machines NASA left behind. Choose a mission to begin.";
 
             // Earth, far from the rover it sent.
             var earth = new GameObject("Earth Label", typeof(RectTransform));
@@ -223,6 +225,8 @@ namespace NasaHack.EditorTools
 
                 string target = FirstScene(name);
                 var button = UiFactory.AddButton(card, name + " Button", target != null ? "Start" : "Coming soon", out var label);
+                var cardNarrator = button.gameObject.AddComponent<NasaHack.TitleCardNarrator>();
+                cardNarrator.narrationText = name + ". " + kind + ". " + blurb.Replace('\n', ' ') + ". " + label.text + ".";
                 if (target != null)
                 {
                     var flow = new GameObject("Scene Flow (" + name + ")").AddComponent<LoadNextScene>();

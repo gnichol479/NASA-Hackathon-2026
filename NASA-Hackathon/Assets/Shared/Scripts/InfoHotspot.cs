@@ -12,6 +12,10 @@ namespace NasaHack
         public string title = "Part name";
         [TextArea(3, 8)] public string body = "What it did.";
 
+        [Header("Narration")]
+        [Tooltip("Optional offline voice clip. It plays when the player selects this hotspot, not while merely pointing at it.")]
+        public AudioClip narrationClip;
+
         [Header("Wiring (built by the scene builder)")]
         public GameObject card;
         public TMP_Text titleText;
@@ -23,6 +27,7 @@ namespace NasaHack
 
         bool pinned;
         Vector3 markerScale;
+        AudioSource narrationSource;
 
         void Awake()
         {
@@ -30,6 +35,7 @@ namespace NasaHack
             titleText.text = title;
             bodyText.text = body;
             card.SetActive(false);
+            narrationSource = NarrationPlayback.CreateSource(this);
             if (marker != null) markerScale = marker.localScale;
             var hitArea = GetComponent<SphereCollider>();
             if (hitArea != null) hitArea.radius = Mathf.Max(hitArea.radius, hitRadius);
@@ -41,6 +47,8 @@ namespace NasaHack
             {
                 pinned = !pinned;
                 card.SetActive(true);
+                if (pinned) PlayNarration();
+                else narrationSource.Stop();
             });
         }
 
@@ -51,6 +59,15 @@ namespace NasaHack
         {
             pinned = !pinned;
             card.SetActive(true);
+            if (narrationSource == null) return;
+            if (pinned) PlayNarration();
+            else narrationSource.Stop();
+        }
+
+        void PlayNarration()
+        {
+            if (narrationSource == null || narrationClip == null) return;
+            NarrationPlayback.Play(narrationSource, narrationClip);
         }
 
         // Gentle pulse so players notice the markers.

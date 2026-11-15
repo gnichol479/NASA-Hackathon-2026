@@ -96,10 +96,10 @@ namespace NasaHack.EditorTools
                 "This mast held Opportunity's main camera. Its last 360° panorama was taken right here, from 354 images, between May 13 and June 10, 2018.",
                 new Vector3(bounds.center.x, bounds.max.y + 0.05f, bounds.center.z));
             AddHotspot(hotspots, hotspotMat, "Robotic arm",
-                "The arm carried a rock grinder and science instruments. They helped find hematite, a mineral that usually forms in water.",
+                "The arm carried a rock grinder and science instruments. These tools examined rocks and soil for clues to past water.",
                 new Vector3(bounds.center.x, bounds.min.y + 0.35f * h, bounds.min.z - 0.05f));
             AddHotspot(hotspots, hotspotMat, "Wheels",
-                "Six wheels carried Opportunity 45.16 km, the first marathon on another world. It also climbed a 32-degree slope, the steepest of any Mars rover.",
+                "Six wheels carried Opportunity 45.16 km, the first marathon on another world. It also climbed a 32-degree slope, a record for a Mars rover at the time in 2016.",
                 new Vector3(bounds.min.x + 0.15f, bounds.min.y + 0.2f, bounds.min.z + 0.2f));
 
             var flow = Object.FindObjectOfType<LoadNextScene>();
@@ -112,7 +112,7 @@ namespace NasaHack.EditorTools
             Place(status, new Vector3(1.7f, 1.4f, 2.3f));
             UiFactory.AddText(status, "Title", "Opportunity rover", 50f, FontStyles.Bold).color = UiFactory.Accent;
             UiFactory.AddText(status, "Body",
-                "Status: Silent since June 10, 2018\nLanded: January 25, 2004\nPlanned mission: 90 days. Actual: almost 15 years.",
+                "Status: Silent since June 10, 2018\nLanded: January 25, 2004 UTC (January 24 local time)\nPlanned mission: 90 sols. Actual: almost 15 years.",
                 32f, FontStyles.Normal);
             var button = UiFactory.AddButton(status, "See How I Got Here", "See how I got here", out _);
             UnityEventTools.AddVoidPersistentListener(button.onClick, new UnityAction(flashback.Play));
@@ -121,7 +121,7 @@ namespace NasaHack.EditorTools
             narration.beats = new[]
             {
                 Beat("Perseverance Valley, Mars",
-                    "You're on the rim of Endeavour Crater. The rover in front of you is NASA's Opportunity. It hasn't moved since 2018."),
+                    "You're on the rim of Endeavour Crater. The rover in front of you is NASA's Opportunity. Its last communication with Earth was on June 10, 2018."),
                 Beat("Explore",
                     "Point at the glowing markers to learn what each part did. When you're ready, ask Opportunity how it got here."),
             };
@@ -157,14 +157,14 @@ namespace NasaHack.EditorTools
             narration.beats = new[]
             {
                 Beat("Why was I left behind?",
-                    "There was never a ticket home. Getting to Mars took a rocket. Leaving would have taken another one. Every kilogram was spent on science, so Mars was always where I would finish."),
+                    "Opportunity was a robotic geologist. NASA sent it to study Martian rocks and soil for evidence of past water. Its mission was surface exploration, which it carried out on Mars."),
                 Beat("Why did my mission end?",
                     "In June 2018, a dust storm covered the whole planet and blocked the sunlight my solar panels needed. On June 10, 2018, I went quiet.\n\nTry to wake me up, the way my team did.",
                     waitForEvent: true, showWhileActive: wake.gameObject),
                 Beat("My team never gave up",
                     "Over eight months they sent more than a thousand commands. The last ones went out on February 12, 2019. The next day, NASA declared my mission complete."),
                 Beat("Why remember me?",
-                    "I was built to last 90 days. I lasted almost 15 years. I drove 45.16 km and found signs of ancient water, like a pond or lake on Earth.\n\nOn October 11, 2026, a rover named Perseverance passed my driving record. Every explorer that comes next starts from what I found."),
+                    "I was built for a 90-sol mission. I lasted almost 15 years and drove 45.16 kilometers. At Meridiani Planum, I found evidence that liquid water had altered rocks long ago.\n\nOn October 11, 2026, NASA's Perseverance rover surpassed my driving-distance record."),
             };
 
             EditorSceneManager.SaveScene(scene);
@@ -240,8 +240,8 @@ namespace NasaHack.EditorTools
             {
                 Beat("Abandoned but not Forgotten",
                     "A VR field trip to the machines NASA left behind.\n\n" +
-                    "Your first stop: Mars, 2026. A rover that was built to last 90 days has been silent for eight years. " +
-                    "Find out what it did, how it got there, and why it still matters.\n\n" +
+                    "Your first stop: Mars. Opportunity was designed for 90 sols and worked for nearly 15 years. " +
+                    "It last communicated with Earth on June 10, 2018. Find out what it discovered and how it got there.\n\n" +
                     "NASA Space Apps 2026. Team: Yayo, Gibson, Dominic, Susan."),
             };
             if (flow != null) UnityEventTools.AddVoidPersistentListener(narration.onFinished, new UnityAction(flow.Load));

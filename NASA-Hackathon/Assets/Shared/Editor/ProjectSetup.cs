@@ -9,6 +9,8 @@ using UnityEditor.XR.Management.Metadata;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.InputSystem.XR;
+using Unity.XR.CoreUtils;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Management;
 using UnityEngine.XR.OpenXR;
@@ -44,6 +46,7 @@ namespace NasaHack.EditorTools
         {
             SetupOpenXRFeatures();
             var rig = CreateRigPrefab();
+            ConfigureSharedRigForQuestTracking();
             SetupDeviceSimulator();
             var ground = CreateGroundMaterial();
             CreateScenes(rig, ground);
@@ -117,28 +120,47 @@ namespace NasaHack.EditorTools
 
         static void SetupOpenXRFeatures()
         {
-            var settings = OpenXRSettings.GetSettingsForBuildTargetGroup(BuildTargetGroup.Standalone);
+            ConfigureOpenXRControllerProfiles(BuildTargetGroup.Standalone, includeDesktopProfiles: true);
+            ConfigureOpenXRControllerProfiles(BuildTargetGroup.Android, includeDesktopProfiles: false);
+        }
+
+        [MenuItem("NasaHack/VR/Enable Quest 2 Touch controllers")]
+        static void EnableQuest2TouchControllers()
+        {
+            SetupOpenXRFeatures();
+            AssetDatabase.SaveAssets();
+            Debug.Log("[NasaHack] Oculus Touch controller profile enabled for Quest Link and Android Quest builds.");
+        }
+
+        static void ConfigureOpenXRControllerProfiles(BuildTargetGroup group, bool includeDesktopProfiles)
+        {
+            var settings = OpenXRSettings.GetSettingsForBuildTargetGroup(group);
             if (settings == null)
             {
-                Debug.LogWarning("[NasaHack] OpenXR settings not found. Enable controller profiles in Project Settings > XR Plug-in Management > OpenXR.");
+                Debug.LogWarning($"[NasaHack] OpenXR settings not found for {group}. Enable controller profiles in Project Settings > XR Plug-in Management > OpenXR.");
                 return;
             }
 
-            var profiles = new[]
-            {
-                typeof(OculusTouchControllerProfile),
-                typeof(MetaQuestTouchPlusControllerProfile),
-                typeof(KHRSimpleControllerProfile),
-                typeof(ValveIndexControllerProfile),
-                typeof(HTCViveControllerProfile),
-            };
+            var profiles = includeDesktopProfiles
+                ? new[]
+                {
+                    typeof(OculusTouchControllerProfile),
+                    typeof(MetaQuestTouchPlusControllerProfile),
+                    typeof(KHRSimpleControllerProfile),
+                    typeof(ValveIndexControllerProfile),
+                    typeof(HTCViveControllerProfile),
+                }
+                : new[] { typeof(OculusTouchControllerProfile) };
+
             foreach (var type in profiles)
             {
                 var feature = settings.GetFeature(type);
-                if (feature != null) feature.enabled = true;
+                if (feature == null) continue;
+                feature.enabled = true;
+                EditorUtility.SetDirty(feature);
             }
             EditorUtility.SetDirty(settings);
-            Debug.Log("[NasaHack] OpenXR controller profiles enabled.");
+            Debug.Log($"[NasaHack] OpenXR controller profiles enabled for {group}.");
         }
 
         static GameObject CreateRigPrefab()
@@ -164,8 +186,71 @@ namespace NasaHack.EditorTools
             return prefab;
         }
 
+        [MenuItem("NasaHack/VR/Configure shared XR rig for Quest floor tracking")]
+        static void ConfigureSharedRigForQuestTracking()
+        {
+            if (!File.Exists(RigPath))
+            {
+                Debug.LogError("[NasaHack] Shared XR Rig prefab is missing: " + RigPath);
+                return;
+            }
+
+            var rig = PrefabUtility.LoadPrefabContents(RigPath);
+            try
+            {
+                var origin = rig.GetComponentInChildren<XROrigin>(true);
+                if (origin == null)
+                {
+                    Debug.LogError("[NasaHack] Shared XR Rig has no XROrigin.");
+                    return;
+                }
+
+                origin.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.Floor;
+                origin.CameraYOffset = 0f;
+                if (origin.CameraFloorOffsetObject != null)
+                    origin.CameraFloorOffsetObject.transform.localPosition = Vector3.zero;
+
+                if (origin.Camera != null)
+                {
+                    var pose = origin.Camera.GetComponent<TrackedPoseDriver>();
+                    if (pose != null)
+                    {
+                        pose.enabled = true;
+                        pose.trackingType = TrackedPoseDriver.TrackingType.RotationAndPosition;
+                        pose.updateType = TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+                        pose.ignoreTrackingState = false;
+                    }
+                    origin.Camera.tag = "MainCamera";
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(rig, RigPath);
+                Debug.Log("[NasaHack] Shared XR Rig now requests floor tracking with no artificial camera-height offset; TrackedPoseDriver owns head pose.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rig);
+            }
+        }
+
         // XRI keeps these settings internal, so set them by reflection. Editor-only simulator, never in builds.
         static void SetupDeviceSimulator()
+        {
+            ConfigureDeviceSimulator(false);
+        }
+
+        [MenuItem("NasaHack/VR/Use Quest Link (disable simulator)")]
+        static void UseQuestLink()
+        {
+            ConfigureDeviceSimulator(false);
+        }
+
+        [MenuItem("NasaHack/VR/Use desktop XR simulator")]
+        static void UseDesktopSimulator()
+        {
+            ConfigureDeviceSimulator(true);
+        }
+
+        static void ConfigureDeviceSimulator(bool enabled)
         {
             var simulator = FindPrefab("XR Device Simulator");
             var type = typeof(XRBaseInteractable).Assembly.GetType("UnityEngine.XR.Interaction.Toolkit.Inputs.Simulation.XRDeviceSimulatorSettings");
@@ -176,11 +261,13 @@ namespace NasaHack.EditorTools
                 return;
             }
 
-            SetInternal(settings, "automaticallyInstantiateSimulatorPrefab", true);
+            SetInternal(settings, "automaticallyInstantiateSimulatorPrefab", enabled);
             SetInternal(settings, "automaticallyInstantiateInEditorOnly", true);
             SetInternal(settings, "simulatorPrefab", simulator);
             EditorUtility.SetDirty(settings);
-            Debug.Log("[NasaHack] XR Device Simulator enabled (Editor only).");
+            Debug.Log(enabled
+                ? "[NasaHack] XR Device Simulator enabled for desktop Editor testing. Turn it off before using Quest Link."
+                : "[NasaHack] XR Device Simulator disabled so Quest Link supplies the live head and controller poses.");
         }
 
         static Material CreateGroundMaterial()
