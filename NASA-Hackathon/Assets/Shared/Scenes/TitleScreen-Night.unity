@@ -6833,6 +6833,7 @@ GameObject:
   - component: {fileID: 421109222}
   - component: {fileID: 421109221}
   - component: {fileID: 421109220}
+  - component: {fileID: 421109224}
   m_Layer: 0
   m_Name: InSight Button
   m_TagString: Untagged
@@ -6974,6 +6975,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 421109218}
   m_CullTransparentMesh: 1
+--- !u!114 &421109224
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 421109218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96ec2dcf8a7e4b229a0582e74c77d360, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  narrationText: InSight MARS LANDER Listened for marsquakes to study the inside
+    of Mars. Start
+  narrationClip: {fileID: 8300000, guid: 44882f1a774d2914ca07f4d9af1d154c, type: 3}
 --- !u!1 &432715391
 GameObject:
   m_ObjectHideFlags: 0
@@ -10760,6 +10776,7 @@ GameObject:
   - component: {fileID: 623847254}
   - component: {fileID: 623847253}
   - component: {fileID: 623847252}
+  - component: {fileID: 623847256}
   m_Layer: 0
   m_Name: Ingenuity Button
   m_TagString: Untagged
@@ -10889,6 +10906,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 623847250}
   m_CullTransparentMesh: 1
+--- !u!114 &623847256
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 623847250}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96ec2dcf8a7e4b229a0582e74c77d360, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  narrationText: Ingenuity MARS HELICOPTER First powered, controlled flight on another
+    planet. Coming soon
+  narrationClip: {fileID: 8300000, guid: ce7f6af5a9ae3d24f85b114386bccb31, type: 3}
 --- !u!1 &623848500
 GameObject:
   m_ObjectHideFlags: 0
@@ -15670,6 +15702,7 @@ GameObject:
   - component: {fileID: 1044500499}
   - component: {fileID: 1044500501}
   - component: {fileID: 1044500500}
+  - component: {fileID: 1044500502}
   m_Layer: 0
   m_Name: Tagline
   m_TagString: Untagged
@@ -15793,6 +15826,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1044500498}
   m_CullTransparentMesh: 1
+--- !u!114 &1044500502
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1044500498}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d068fee9b9d0476ba1bfbc60d3efd412, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  narrationText: Abandoned, but not forgotten. A VR field trip to the machines NASA
+    left behind. Choose a mission to begin.
+  narrationClip: {fileID: 8300000, guid: 78cd9e17f27ceda4b9e00017716432be, type: 3}
 --- !u!1 &1045812931
 GameObject:
   m_ObjectHideFlags: 0
@@ -22051,6 +22099,7 @@ GameObject:
   - component: {fileID: 1473158949}
   - component: {fileID: 1473158948}
   - component: {fileID: 1473158947}
+  - component: {fileID: 1473158951}
   m_Layer: 0
   m_Name: Opportunity Button
   m_TagString: Untagged
@@ -22192,6 +22241,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1473158945}
   m_CullTransparentMesh: 1
+--- !u!114 &1473158951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1473158945}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96ec2dcf8a7e4b229a0582e74c77d360, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  narrationText: Opportunity MARS ROVER Built for 90 sols. Drove for almost 15 years.
+    Start
+  narrationClip: {fileID: 8300000, guid: d743756ce1d61314f8e4e195a747526f, type: 3}
 --- !u!1 &1475023885
 GameObject:
   m_ObjectHideFlags: 0
@@ -22664,7 +22728,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'The first aircraft to fly
+  m_text: 'First powered, controlled flight
 
     on another planet.'
   m_isRightToLeft: 0
@@ -26968,7 +27032,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Built to last 90 days.
+  m_text: 'Built for 90 sols.
 
     Drove for almost 15 years.'
   m_isRightToLeft: 0

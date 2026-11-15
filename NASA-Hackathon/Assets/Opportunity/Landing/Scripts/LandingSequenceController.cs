@@ -24,7 +24,21 @@ public class LandingSequenceController : MonoBehaviour
     public TerrainLayer legacySandLayer;
     [Header("Sample feedback")]
     [Range(0f, 1f)] public float sampleSoundVolume = 0.18f;
+    [Header("Narration")]
+    [TextArea(3, 7)] public string landingIntroductionText = "Opportunity landed at Meridiani Planum in January 2004 to investigate geological evidence of past water. Investigate each of the three sample stations, then choose what the evidence supports. These simplified readouts are educational examples, not live measurements.";
+    [TextArea(2, 5)] public string[] sampleNarrationText = {
+        "Hematite-rich spheres: Opportunity found these mineral concretions, nicknamed blueberries. Their setting and chemistry support formation through ancient groundwater.",
+        "Jarosite detected: Opportunity's mineral instrument identified this iron sulfate in rock. Jarosite forms in the presence of water, supporting a wet past.",
+        "Red surface dust: color alone does not tell us whether liquid water was present. Scientists need mineral measurements and geological context."
+    };
+    [TextArea(2, 8)] public string incorrectConclusionText = "Try again: these rocks tell us about water and geology. Opportunity did not discover living organisms.";
+    [TextArea(4, 12)] public string conclusionNarrationText = "Mission complete: evidence of ancient liquid water. Hematite concretions and jarosite, together with their geological setting, helped scientists reconstruct a wet past at Meridiani Planum. Red color alone would not establish this. These are simplified examples of real discoveries, not live mineral measurements. Hematite spheres are enlarged for visibility. Evidence of water is not proof of life. Opportunity operated from 2004 to 2018, far beyond its planned 90-sol mission. Contact was lost during a Mars-wide dust storm; NASA ended the mission in 2019.";
+    public AudioClip landingIntroductionNarration;
+    public AudioClip[] sampleNarrationClips = new AudioClip[3];
+    public AudioClip incorrectConclusionNarration;
+    public AudioClip conclusionNarration;
     AudioSource sampleAudio;
+    AudioSource narrationAudio;
     AudioClip sampleRecordedClip;
     XROrigin origin;
     GameObject canopy, missionRoot;
@@ -32,11 +46,6 @@ public class LandingSequenceController : MonoBehaviour
     readonly GameObject[] clues = new GameObject[3];
     readonly TextMeshPro[] rockLabels = new TextMeshPro[3];
     readonly bool[] examined = new bool[3];
-    readonly string[] evidence = {
-        "Hematite-rich spheres: Opportunity found these mineral concretions, nicknamed blueberries. Their setting and chemistry support formation through ancient groundwater.",
-        "Jarosite detected: Opportunity's mineral instrument identified this iron sulfate in rock. Jarosite forms in the presence of water, supporting a wet past.",
-        "Red surface dust: color alone does not tell us whether liquid water was present. Scientists need mineral measurements and geological context."
-    };
     bool scanning;
     int examinedCount;
     GameObject answerWater, answerLife;
@@ -45,6 +54,11 @@ public class LandingSequenceController : MonoBehaviour
     Vector3 site;
     bool ready, discovered;
     readonly List<Object> assets = new List<Object>();
+
+    void Awake()
+    {
+        narrationAudio = NarrationPlayback.CreateSource(this);
+    }
 
     IEnumerator Start()
     {
@@ -136,6 +150,7 @@ public class LandingSequenceController : MonoBehaviour
             if (Camera.main != null) label.transform.rotation = Quaternion.LookRotation(label.transform.position - Camera.main.transform.position);
         if (Camera.main != null) UiFactory.FacePoint(panel, Camera.main.transform.position);
         ready = true;
+        PlayNarration(landingIntroductionNarration);
     }
 
     Vector3 Surface(Vector3 point)
@@ -405,7 +420,8 @@ public class LandingSequenceController : MonoBehaviour
     {
         string notes = "";
         for (int i = 0; i < examined.Length; i++)
-            if (examined[i]) notes += "\n\nSample " + (i+1) + ": " + evidence[i];
+            if (examined[i] && sampleNarrationText != null && i < sampleNarrationText.Length)
+                notes += "\n\nSample " + (i+1) + ": " + sampleNarrationText[i];
         string instruction = examinedCount < 3
             ? "Approach each numbered rock and select it with the controller ray. Desktop: approach and press E.\nSimplified instrument readings inspired by Opportunity's discoveries."
             : "What do these clues support? Choose below. Desktop: 1 = ancient water; 2 = life found.";
@@ -455,6 +471,8 @@ public class LandingSequenceController : MonoBehaviour
         rockLabels[index].color = new Color(0.65f,1f,0.75f);
         scanning = false;
         RefreshMission();
+        if (sampleNarrationClips != null && index < sampleNarrationClips.Length)
+            PlayNarration(sampleNarrationClips[index]);
     }
 
     public void SubmitConclusion(bool ancientWater)
@@ -462,13 +480,15 @@ public class LandingSequenceController : MonoBehaviour
         if (!ready || discovered || examinedCount != 3) return;
         if (!ancientWater)
         {
-            RefreshMission("\n\nTry again: these rocks tell us about water and geology. Opportunity did not discover living organisms.");
+            RefreshMission("\n\n" + incorrectConclusionText);
+            PlayNarration(incorrectConclusionNarration);
             return;
         }
         discovered = true;
         answerWater.SetActive(false);
         answerLife.SetActive(false);
-        story.text = "Mission complete: evidence of ancient liquid water!\n\nHematite concretions and jarosite, together with their geological setting, helped scientists reconstruct a wet past at Meridiani Planum. Red color alone would not establish this.\n\nThese are simplified examples of real discoveries, not live mineral measurements. Hematite spheres are enlarged for visibility. Evidence of water is not proof of life.\n\nOpportunity operated from 2004 to 2018, far beyond its planned 90-sol mission. Contact was lost during a dust storm; NASA ended the mission in 2019.\n\nContinue to its legacy. Desktop: Enter.";
+        story.text = conclusionNarrationText + "\n\nContinue to its legacy. Desktop: Enter.";
+        PlayNarration(conclusionNarration);
         panel.Find("Continue to Legacy").gameObject.SetActive(true);
     }
 
@@ -507,6 +527,12 @@ public class LandingSequenceController : MonoBehaviour
             assets.Add(sampleRecordedClip);
         }
         sampleAudio.PlayOneShot(sampleRecordedClip, sampleSoundVolume);
+    }
+
+    void PlayNarration(AudioClip clip)
+    {
+        if (clip == null || narrationAudio == null) return;
+        NarrationPlayback.Play(narrationAudio, clip);
     }
 
     void Update()

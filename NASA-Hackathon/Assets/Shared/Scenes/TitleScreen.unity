@@ -15729,13 +15729,14 @@ MonoBehaviour:
 
 
       Your first stop:
-      Mars, 2026. A rover that was built to last 90 days has been silent for eight
-      years. Find out what it did, how it got there, and why it still matters.
+      Mars. Opportunity was designed for 90 sols and worked for nearly 15 years.
+      It last communicated with Earth on June 10, 2018. Find out what it discovered
+      and how it got there.
 
 
-      NASA
-      Space Apps 2026. Team: Yayo, Gibson, Dominic, Susan.'
-    voice: {fileID: 0}
+      NASA Space Apps 2026. Team: Yayo, Gibson, Dominic,
+      Susan.'
+    voice: {fileID: 8300000, guid: 17fa3e5784415b84f801e5da3f031330, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   nextLabel: Next

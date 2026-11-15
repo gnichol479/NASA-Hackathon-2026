@@ -11819,10 +11819,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   beats:
   - title: Why was I left behind?
-    text: There was never a ticket home. Getting to Mars took a rocket. Leaving would
-      have taken another one. Every kilogram was spent on science, so Mars was always
-      where I would finish.
-    voice: {fileID: 0}
+    text: Opportunity was a robotic geologist. NASA sent it to study Martian rocks
+      and soil for evidence of past water. Its mission was surface exploration, which
+      it carried out on Mars.
+    voice: {fileID: 8300000, guid: 8d32b5c2b397abe4693d34dee71c55e3, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   - title: Why did my mission end?
@@ -11832,24 +11832,24 @@ MonoBehaviour:
 
       Try to wake
       me up, the way my team did.'
-    voice: {fileID: 0}
+    voice: {fileID: 8300000, guid: ed211342019cc0547a15b8080d45d71b, type: 3}
     waitForEvent: 1
     showWhileActive: {fileID: 608871225}
   - title: My team never gave up
     text: Over eight months they sent more than a thousand commands. The last ones
       went out on February 12, 2019. The next day, NASA declared my mission complete.
-    voice: {fileID: 0}
+    voice: {fileID: 8300000, guid: 2c7f8346cc3120f4f8052ba7c6927687, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   - title: Why remember me?
-    text: 'I was built to last 90 days. I lasted almost 15 years. I drove 45.16 km
-      and found signs of ancient water, like a pond or lake on Earth.
+    text: 'I was built for a 90-sol mission. I lasted almost 15 years and drove 45.16
+      kilometers. At Meridiani Planum, I found evidence that liquid water had altered
+      rocks long ago.
 
 
-      On
-      October 11, 2026, a rover named Perseverance passed my driving record. Every
-      explorer that comes next starts from what I found.'
-    voice: {fileID: 0}
+      On October 11, 2026, NASA''s Perseverance rover surpassed
+      my driving-distance record.'
+    voice: {fileID: 8300000, guid: d098a5cfd24fcd6479532d8679c33854, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   nextLabel: Next

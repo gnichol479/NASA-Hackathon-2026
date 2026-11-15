@@ -2508,8 +2508,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: The arm carried a rock grinder and science instruments. They helped find
-    hematite, a mineral that usually forms in water.
+  m_text: The arm carried a rock grinder and science instruments. These tools examined
+    rocks and soil for clues to past water.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -7207,14 +7207,14 @@ MonoBehaviour:
   beats:
   - title: Perseverance Valley, Mars
     text: You're on the rim of Endeavour Crater. The rover in front of you is NASA's
-      Opportunity. It hasn't moved since 2018.
-    voice: {fileID: 0}
+      Opportunity. Its last communication with Earth was on June 10, 2018.
+    voice: {fileID: 8300000, guid: 32407f01f8fedf841b3d2963d9c5be4c, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   - title: Explore
     text: Point at the glowing markers to learn what each part did. When you're ready,
       ask Opportunity how it got here.
-    voice: {fileID: 0}
+    voice: {fileID: 8300000, guid: 53605ec4774ab7741b987eb059ba98da, type: 3}
     waitForEvent: 0
     showWhileActive: {fileID: 0}
   nextLabel: Next
@@ -9081,6 +9081,7 @@ MonoBehaviour:
   title: Pancam (panoramic camera)
   body: "This mast held Opportunity's main camera. Its last 360\xB0 panorama was
     taken right here, from 354 images, between May 13 and June 10, 2018."
+  narrationClip: {fileID: 8300000, guid: 6aa6fe0d1ebe61140bc0bf55522b30c7, type: 3}
   card: {fileID: 26703824}
   titleText: {fileID: 1114199100}
   bodyText: {fileID: 532386280}
@@ -20394,8 +20395,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   title: Robotic arm
-  body: The arm carried a rock grinder and science instruments. They helped find
-    hematite, a mineral that usually forms in water.
+  body: The arm carried a rock grinder and science instruments. These tools examined
+    rocks and soil for clues to past water.
+  narrationClip: {fileID: 8300000, guid: c2571acf9da5d4245b5d4e1f99ac4fcf, type: 3}
   card: {fileID: 2076494194}
   titleText: {fileID: 2135960316}
   bodyText: {fileID: 182026806}
@@ -21497,10 +21499,10 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Status: Silent since June 10, 2018
 
-    Landed: January 25, 2004
+    Landed: January 25, 2004 UTC (January
+    24 local time)
 
-    Planned
-    mission: 90 days. Actual: almost 15 years.'
+    Planned mission: 90 sols. Actual: almost 15 years.'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -22216,7 +22218,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_text: Six wheels carried Opportunity 45.16 km, the first marathon on another
-    world. It also climbed a 32-degree slope, the steepest of any Mars rover.
+    world. It also climbed a 32-degree slope, a record for a Mars rover at the time
+    in 2016.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -23811,7 +23814,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   title: Wheels
   body: Six wheels carried Opportunity 45.16 km, the first marathon on another world.
-    It also climbed a 32-degree slope, the steepest of any Mars rover.
+    It also climbed a 32-degree slope, a record for a Mars rover at the time in 2016.
+  narrationClip: {fileID: 8300000, guid: b4a6d1cdbbd87ef47a6dae717257b2f1, type: 3}
   card: {fileID: 1196836176}
   titleText: {fileID: 875167684}
   bodyText: {fileID: 1767052541}
@@ -24158,6 +24162,7 @@ MonoBehaviour:
   title: Solar panels
   body: Opportunity ran on sunlight. Dust settling on these panels cut its power.
     In 2018 a planet-wide dust storm blocked the Sun.
+  narrationClip: {fileID: 8300000, guid: 6f4d93a1d5d070d41b4a7a31c935be3d, type: 3}
   card: {fileID: 2017972257}
   titleText: {fileID: 42285984}
   bodyText: {fileID: 949412525}

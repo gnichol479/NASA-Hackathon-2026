@@ -33256,7 +33256,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 300
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -43496,6 +43496,68 @@ MonoBehaviour:
   countdownSeconds: 10
   flightSeconds: 32
   rumble: {fileID: 840011150}
+  liftoffAcceleration: 5
+  maxAcceleration: 30
+  idleMessage: "DELTA II 7925H  \u2022  MARS EXPLORATION ROVER-B \"OPPORTUNITY\"\nCape
+    Canaveral, Space Launch Complex 17B  \u2022  July 7, 2003, 11:18 p.m. EDT\n\nPress
+    the red LAUNCH button to start the countdown."
+  ignitionMessage: Main engine start!
+  liftoffMessage: 'LIFTOFF!
+
+    Delta II lifts off carrying the Opportunity rover
+    to Mars.'
+  pitchMessage: 'Pitching over and heading east, out over the Atlantic Ocean.
+
+    Six
+    ground-lit GEM-46 boosters at full thrust.'
+  stagingMessage: 'The six ground-lit boosters burn out and drop away.
+
+    The three
+    air-lit boosters ignite!'
+  cruiseMessage: 'Opportunity is on its way to Mars!
+
+    Landing: Meridiani Planum,
+    January 25, 2004 UTC (January 24 local time).
+
+
+    (Real launch timeline sped
+    up.)'
+  briefingNarrationText: NASA's Mars Exploration Rover-B, Opportunity, launched aboard
+    a Delta II 7925H from Cape Canaveral Air Force Station on July 7, 2003, at 11:18
+    p.m. Eastern Daylight Time. Its mission was to investigate evidence of past water
+    on Mars. Press the red launch button when you are ready. This is a shortened
+    educational reenactment.
+  countdownNarrationText: Ten. Nine. Eight. Seven.
+  internalPowerNarrationText: Launch vehicle on internal power.
+  ignitionNarrationText: Main engine start!
+  liftoffNarrationText: 'LIFTOFF!
+
+    Delta II lifts off carrying the Opportunity
+    rover to Mars.'
+  pitchNarrationText: 'Pitching over and heading east, out over the Atlantic Ocean.
+
+    Six
+    ground-lit GEM-46 boosters at full thrust.'
+  stagingNarrationText: 'The six ground-lit boosters burn out and drop away.
+
+    The
+    three air-lit boosters ignite!'
+  cruiseNarrationText: 'Opportunity is on its way to Mars!
+
+    Landing: Meridiani
+    Planum, January 25, 2004 UTC (January 24 local time).
+
+
+    (Real launch timeline
+    sped up.)'
+  briefingNarration: {fileID: 8300000, guid: 498af2e274feadd4eb55a1187cbdd4a3, type: 3}
+  countdownNarration: {fileID: 8300000, guid: 22979ab7049486842a96db3d3020b1cc, type: 3}
+  internalPowerNarration: {fileID: 8300000, guid: 86584cbafd714874bbb4f8b3b9a37e4b, type: 3}
+  ignitionNarration: {fileID: 8300000, guid: eb6d5de248f5d974abcd9d987490947b, type: 3}
+  liftoffNarration: {fileID: 8300000, guid: a7df9e87f706570469c65866e9ccf85a, type: 3}
+  pitchNarration: {fileID: 8300000, guid: 1fbd1851724ead7439c20961efbc81bf, type: 3}
+  stagingNarration: {fileID: 8300000, guid: f637e4680808c8c4480021e1e29b8d2d, type: 3}
+  cruiseNarration: {fileID: 8300000, guid: c4a1c30bfebd9f044bae7e82fe363da4, type: 3}
 --- !u!114 &840011150
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89516,7 +89578,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 90
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -98286,7 +98348,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 56
     m_Alignment: 1
     m_AlignByGeometry: 0
     m_RichText: 1

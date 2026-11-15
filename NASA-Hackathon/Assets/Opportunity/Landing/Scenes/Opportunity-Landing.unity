@@ -1502,9 +1502,41 @@ MonoBehaviour:
   lander: {fileID: 443832401}
   opportunityRover: {fileID: 949386766}
   landingDuration: 4
+  roverSizeMeters: 2.3
+  panelOffset: {x: 1.8, y: 1.45, z: -3}
+  immersiveEnvironment: 1
+  sceneryRockCount: 95
   legacyRockMaterial: {fileID: 2100000, guid: 08ffd663e2980aa3897a908b296aae56, type: 2}
   legacySandLayer: {fileID: 8574412962073106934, guid: 67b7dc779036dd3dab9ae716e7d79d20, type: 2}
-  roverSizeMeters: 2.3
+  sampleSoundVolume: 0.18
+  landingIntroductionText: Opportunity landed at Meridiani Planum in January 2004
+    to investigate geological evidence of past water. Investigate each of the three
+    sample stations, then choose what the evidence supports. These simplified readouts
+    are educational examples, not live measurements.
+  sampleNarrationText:
+  - 'Hematite-rich spheres: Opportunity found these mineral concretions, nicknamed
+    blueberries. Their setting and chemistry support formation through ancient groundwater.'
+  - 'Jarosite detected: Opportunity''s mineral instrument identified this iron sulfate
+    in rock. Jarosite forms in the presence of water, supporting a wet past.'
+  - 'Red surface dust: color alone does not tell us whether liquid water was present.
+    Scientists need mineral measurements and geological context.'
+  incorrectConclusionText: 'Try again: these rocks tell us about water and geology.
+    Opportunity did not discover living organisms.'
+  conclusionNarrationText: 'Mission complete: evidence of ancient liquid water. Hematite
+    concretions and jarosite, together with their geological setting, helped scientists
+    reconstruct a wet past at Meridiani Planum. Red color alone would not establish
+    this. These are simplified examples of real discoveries, not live mineral measurements.
+    Hematite spheres are enlarged for visibility. Evidence of water is not proof
+    of life. Opportunity operated from 2004 to 2018, far beyond its planned 90-sol
+    mission. Contact was lost during a Mars-wide dust storm; NASA ended the mission
+    in 2019.'
+  landingIntroductionNarration: {fileID: 8300000, guid: 12651a4aa9ef0814c94a0c3da0986cbd, type: 3}
+  sampleNarrationClips:
+  - {fileID: 8300000, guid: c74c6fc652b038d469aca087dee0e1ad, type: 3}
+  - {fileID: 8300000, guid: f1eec5b2bad71e744bd9b4ae7d33be24, type: 3}
+  - {fileID: 8300000, guid: 564c5adc441515f48bf69186e11d2915, type: 3}
+  incorrectConclusionNarration: {fileID: 8300000, guid: f47de7c1fe0beaf4686fab990496503c, type: 3}
+  conclusionNarration: {fileID: 8300000, guid: 49eef913d0027f148ba47a6a7a0abb4d, type: 3}
 --- !u!1 &1606896580
 GameObject:
   m_ObjectHideFlags: 0
