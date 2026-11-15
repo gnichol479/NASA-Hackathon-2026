@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Shared/Scenes/TitleScreen-Night.unity
+    guid: 0efb792badd81cd47ae348aca421fc38
+  - enabled: 1
     path: Assets/Shared/Scenes/TitleScreen.unity
     guid: 9fc0d4010bbf28b4594072e72b8655ab
   - enabled: 1
@@ -23,6 +26,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity
     guid: 5dd167eb08d333d4d87f0e48979acb35
+  - enabled: 1
+    path: Assets/InSight/Launch/Scenes/InSight-Launch.unity
+    guid: c48d3f544159a5043b4e56f9456b19af
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11869147fc86e06a692ec91f4e4f958a, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: ec8c2195195c8f3e5b71021be2501364, type: 2}

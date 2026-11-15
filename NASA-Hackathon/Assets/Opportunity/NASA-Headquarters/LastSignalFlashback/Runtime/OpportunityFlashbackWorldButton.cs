@@ -1,6 +1,6 @@
 using System;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 using UnityEngine.XR.Interaction.Toolkit;
 
 namespace LastSignal.OpportunityFlashback
@@ -11,24 +11,25 @@ namespace LastSignal.OpportunityFlashback
     {
         [SerializeField] private Renderer faceRenderer;
         [SerializeField] private Collider hitCollider;
-        [SerializeField] private Text labelText;
+        [SerializeField] private TMP_Text labelText;
         [SerializeField] private XRSimpleInteractable xrInteractable;
 
         private Action pressed;
+        private MaterialPropertyBlock colorBlock;
         private Color activeColor;
         private bool interactable;
         private bool hovered;
 
         public bool Interactable => interactable;
 
-        public void Configure(string buttonLabel, Action onPressed, Color buttonColor, Text textComponent)
+        public void Configure(string buttonLabel, Action onPressed, Color buttonColor, TMP_Text textComponent)
         {
             pressed = onPressed;
             activeColor = buttonColor;
             labelText = textComponent;
             if (labelText != null)
                 labelText.text = buttonLabel;
-            faceRenderer = GetComponent<Renderer>();
+            faceRenderer = GetComponentInChildren<Renderer>();
             hitCollider = GetComponent<Collider>();
             xrInteractable = GetComponent<XRSimpleInteractable>();
             if (xrInteractable == null)
@@ -94,9 +95,15 @@ namespace LastSignal.OpportunityFlashback
         {
             if (faceRenderer == null)
                 return;
-            faceRenderer.material.color = !interactable
+            Color color = !interactable
                 ? new Color(0.22f, 0.25f, 0.29f, 1f)
                 : hovered ? Color.Lerp(activeColor, Color.white, 0.35f) : activeColor;
+            if (colorBlock == null)
+                colorBlock = new MaterialPropertyBlock();
+            faceRenderer.GetPropertyBlock(colorBlock);
+            colorBlock.SetColor(Shader.PropertyToID("_BaseColor"),color);
+            colorBlock.SetColor(Shader.PropertyToID("_Color"),color);
+            faceRenderer.SetPropertyBlock(colorBlock);
         }
     }
 }

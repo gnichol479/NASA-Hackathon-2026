@@ -14,10 +14,28 @@ namespace NasaHack.EditorTools
         // Set to false for the daytime version.
         public const bool NightLaunch = true;
 
-        const string NightSkyPath = Root + "/Textures/NightSky.png";
+        static string NightSkyPath => Root + "/Textures/NightSky.png";
 
         // World directions: player faces +Z = east, so +X = south, -X = north, -Z = west.
-        static readonly Vector3 MoonDir = new Vector3(0.355f, 0.375f, -0.857f).normalized; // low in the west-southwest
+        // How the generated sky looks for each launch.
+        class SkyLook
+        {
+            public Vector3 moonDir;
+            public float moonSunAngle = 90f;      // degrees between "toward us" and "toward the sun" on the moon: 90 = half lit
+            public Color zenith = new Color(0.006f, 0.009f, 0.024f), horizon = new Color(0.035f, 0.045f, 0.08f);
+            public Color cityGlow = new Color(0.05f, 0.03f, 0.014f);
+            public Vector3 cityDir = new Vector3(-0.38f, 0f, -0.92f);
+            public float starLow = 0f, starHigh = 0.2f;   // stars fade in between these heights (0 = horizon, 1 = overhead)
+            public float starGain = 1f, milkyWayGain = 1f;
+            public float haloScale = 1.6f;                // moon glow radius, in moon radii
+            public Color halo = new Color(0.035f, 0.04f, 0.055f);
+        }
+
+        // Cape Canaveral, July 7, 2003, 11:18 p.m.: clear sky, first-quarter moon low in the west-southwest.
+        static readonly SkyLook CapeSky = new SkyLook { moonDir = new Vector3(0.355f, 0.375f, -0.857f).normalized };
+
+        static SkyLook Sky => InSight ? VandenbergSky : CapeSky;
+        static Vector3 MoonDir => Sky.moonDir;
         static readonly Vector3 RocketAim = new Vector3(0f, 25f, 90f);                     // middle of the rocket
 
         static void BuildNightAtmosphere(UnityEngine.SceneManagement.Scene scene, Mats mats)
@@ -291,10 +309,11 @@ namespace NasaHack.EditorTools
                 cosLon[x] = Mathf.Cos(lon); sinLon[x] = Mathf.Sin(lon);
             }
 
-            var zenith = new Color(0.006f, 0.009f, 0.024f);
-            var horizon = new Color(0.035f, 0.045f, 0.08f);
-            var orlandoGlow = new Color(0.05f, 0.03f, 0.014f);
-            var westNorthWest = new Vector3(-0.38f, 0f, -0.92f).normalized;
+            var sky = Sky;
+            var zenith = sky.zenith;
+            var horizon = sky.horizon;
+            var orlandoGlow = sky.cityGlow;
+            var westNorthWest = sky.cityDir.normalized;
             var mwNormal = new Vector3(0.3f, 0.12f, 0.95f).normalized;      // Milky Way runs south -> overhead -> north
             var galacticCenter = new Vector3(0.93f, 0.25f, -0.25f).normalized; // Sagittarius, low in the south
 
@@ -321,7 +340,7 @@ namespace NasaHack.EditorTools
                             float n = Mathf.PerlinNoise(x * 0.004f, y * 0.006f) * 0.6f + Mathf.PerlinNoise(x * 0.015f + 40f, y * 0.02f) * 0.4f;
                             float dust = Mathf.Clamp01(Mathf.PerlinNoise(x * 0.01f + 9f, y * 0.012f + 3f) * 1.6f - 0.55f); // dark lanes
                             float core = 1f + 1.8f * Mathf.Pow(Mathf.Max(0f, Vector3.Dot(d, galacticCenter)), 6f);
-                            float k = band * n * core * (1f - dust * 0.8f) * Step(0f, 0.25f, dy);
+                            float k = band * n * core * (1f - dust * 0.8f) * Step(0f, 0.25f, dy) * sky.milkyWayGain;
                             c += new Color(0.026f, 0.027f, 0.034f) * k;
                         }
                     }
@@ -344,7 +363,7 @@ namespace NasaHack.EditorTools
                 float u = 0.5f - Mathf.Atan2(d.z, d.x) / (2f * Mathf.PI); u -= Mathf.Floor(u);
                 float v = 1f - Mathf.Acos(d.y) / Mathf.PI;
                 int sx = Mathf.FloorToInt(u * W), sy = Mathf.FloorToInt(v * H); // rows are bottom-up, like the texture
-                float b = (Mathf.Pow(Rand(), 10f) * 1.5f + 0.03f + 0.05f * Rand()) * Step(0f, 0.2f, d.y);
+                float b = (Mathf.Pow(Rand(), 10f) * 1.5f + 0.03f + 0.05f * Rand()) * Step(sky.starLow, sky.starHigh, d.y) * sky.starGain;
                 var tint = Color.Lerp(new Color(0.75f, 0.85f, 1f), new Color(1f, 0.85f, 0.68f), Rand());
                 Add(sx, sy, tint * b);
                 if (b > 0.75f)
@@ -358,11 +377,13 @@ namespace NasaHack.EditorTools
             float moonRadius = 1.9f * Mathf.Deg2Rad;
             // First quarter: sunlight hits the moon from 90° to the side (from below the western horizon),
             // so exactly half of the disc is lit.
-            var sunDir = Vector3.ProjectOnPlane(new Vector3(-0.6f, -0.55f, -0.6f), MoonDir).normalized;
+            var sideways = Vector3.ProjectOnPlane(new Vector3(-0.6f, -0.55f, -0.6f), MoonDir).normalized;
+            float phase = sky.moonSunAngle * Mathf.Deg2Rad;
+            var sunDir = (sideways * Mathf.Sin(phase) - MoonDir * Mathf.Cos(phase)).normalized;
             float mu = 0.5f - Mathf.Atan2(MoonDir.z, MoonDir.x) / (2f * Mathf.PI); mu -= Mathf.Floor(mu);
             float mv = 1f - Mathf.Acos(MoonDir.y) / Mathf.PI;
             int mcx = Mathf.FloorToInt(mu * W), mcy = Mathf.FloorToInt(mv * H);
-            int span = Mathf.CeilToInt(moonRadius / (Mathf.PI / H) * 1.6f) + 4;
+            int span = Mathf.CeilToInt(moonRadius / (Mathf.PI / H) * sky.haloScale) + 4;
             for (int y = mcy - span; y <= mcy + span; y++)
             {
                 if (y < 0 || y >= H) continue;
@@ -372,7 +393,7 @@ namespace NasaHack.EditorTools
                     int x = (xx % W + W) % W;
                     var d = new Vector3(Mathf.Sin(lat) * cosLon[x], Mathf.Cos(lat), Mathf.Sin(lat) * sinLon[x]);
                     float ang = Mathf.Acos(Mathf.Clamp(Vector3.Dot(d, MoonDir), -1f, 1f));
-                    if (ang > moonRadius * 1.6f) continue;
+                    if (ang > moonRadius * sky.haloScale) continue;
                     if (ang < moonRadius)
                     {
                         var o = (d - MoonDir * Vector3.Dot(d, MoonDir)) / Mathf.Sin(moonRadius);
@@ -386,8 +407,8 @@ namespace NasaHack.EditorTools
                     }
                     else
                     {
-                        float glow = 1f - Step(moonRadius, moonRadius * 1.6f, ang);
-                        px[y * W + x] += new Color(0.035f, 0.04f, 0.055f) * glow * glow;
+                        float glow = 1f - Step(moonRadius, moonRadius * sky.haloScale, ang);
+                        px[y * W + x] += sky.halo * glow * glow;
                     }
                 }
             }

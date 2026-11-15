@@ -5,9 +5,10 @@ using UnityEngine.XR.Interaction.Toolkit;
 
 namespace NasaHack
 {
-    // Runs the Delta II 7925H launch: countdown, ignition, liftoff, pitch-over,
-    // booster jettison and air-lit ignition, then hands off to LoadNextScene.
+    // Runs a rocket launch: countdown, ignition, liftoff, pitch-over, booster jettison and
+    // air-lit ignition (if the rocket has boosters), then hands off to LoadNextScene.
     // The real flight is compressed so the whole show takes about 40 seconds.
+    // Built for Opportunity's Delta II 7925H; InSight's Atlas V 401 uses it with its own messages.
     public class DeltaIILaunch : MonoBehaviour
     {
         [Header("Rocket")]
@@ -36,12 +37,23 @@ namespace NasaHack
         [Header("Audio")]
         public RocketRumble rumble;
 
-        public bool Launched { get; private set; }
+        [Header("Flight")]
+        [Tooltip("Acceleration at liftoff and late in the flight, in m/s². A heavy rocket starts slowly.")]
+        public float liftoffAcceleration = 5f;
+        public float maxAcceleration = 30f;
 
-        const string IdleMessage =
+        [Header("Messages on the countdown sign")]
+        [TextArea(2, 5)] public string idleMessage =
             "DELTA II 7925H  •  MARS EXPLORATION ROVER-B \"OPPORTUNITY\"\n" +
             "Cape Canaveral, Space Launch Complex 17B  •  July 7, 2003, 11:18 p.m. EDT\n\n" +
             "Press the red LAUNCH button to start the countdown.";
+        [TextArea(1, 3)] public string ignitionMessage = "Main engine start!";
+        [TextArea(1, 3)] public string liftoffMessage = "LIFTOFF!\nDelta II lifts off carrying the Opportunity rover to Mars.";
+        [TextArea(1, 3)] public string pitchMessage = "Pitching over and heading east, out over the Atlantic Ocean.\nSix ground-lit GEM-46 boosters at full thrust.";
+        [TextArea(1, 3)] public string stagingMessage = "The six ground-lit boosters burn out and drop away.\nThe three air-lit boosters ignite!";
+        [TextArea(1, 4)] public string cruiseMessage = "Opportunity is on its way to Mars!\nLanding: Meridiani Planum, January 25, 2004.\n\n(Real launch timeline sped up.)";
+
+        public bool Launched { get; private set; }
 
         float velocity;
         float flightTime;
@@ -52,7 +64,7 @@ namespace NasaHack
         void Start()
         {
             SetClock("T-" + countdownSeconds.ToString("00"));
-            SetStatus(IdleMessage);
+            SetStatus(idleMessage);
             if (engineLight) engineLight.intensity = 0f;
             if (rocket) padRotation = rocket.rotation;
             DynamicGI.UpdateEnvironment(); // refresh sky reflections (ocean, metal) from the skybox
@@ -85,7 +97,7 @@ namespace NasaHack
                 if (t == 6) SetStatus("Launch vehicle on internal power.");
                 if (t == 3)
                 {
-                    SetStatus("Main engine start!");
+                    SetStatus(ignitionMessage);
                     Play(mainEngineFlames);
                     ignitionTime = Time.time;
                     if (rumble) rumble.target = 0.35f;
@@ -95,7 +107,7 @@ namespace NasaHack
 
             // ---- Liftoff
             SetClock("T+00");
-            SetStatus("LIFTOFF!\nDelta II lifts off carrying the Opportunity rover to Mars.");
+            SetStatus(liftoffMessage);
             Play(groundLitFlames);
             Play(liftoffEffects);
             if (padSmoke) padSmoke.Play();
@@ -112,20 +124,20 @@ namespace NasaHack
                 if (!pitched && flightTime > 9f)
                 {
                     pitched = true;
-                    SetStatus("Pitching over and heading east, out over the Atlantic Ocean.\nSix ground-lit GEM-46 boosters at full thrust.");
+                    SetStatus(pitchMessage);
                 }
                 if (!jettisoned && flightTime > 17f)
                 {
                     jettisoned = true;
                     JettisonGroundLitBoosters();
                     Play(airLitFlames);
-                    SetStatus("The six ground-lit boosters burn out and drop away.\nThe three air-lit boosters ignite!");
+                    SetStatus(stagingMessage);
                 }
                 if (!cruising && flightTime > 25f)
                 {
                     cruising = true;
                     if (rumble) rumble.target = 0.3f;
-                    SetStatus("Opportunity is on its way to Mars!\nLanding: Meridiani Planum, January 25, 2004.\n\n(Real launch timeline sped up.)");
+                    SetStatus(cruiseMessage);
                 }
                 yield return null;
             }
@@ -148,8 +160,8 @@ namespace NasaHack
             float dt = Time.deltaTime;
             flightTime += dt;
 
-            // Slow, heavy start that builds up: ~5 m/s² at liftoff rising to ~30 m/s².
-            float accel = Mathf.Lerp(5f, 30f, Mathf.Clamp01(flightTime / 25f));
+            // Slow, heavy start that builds up.
+            float accel = Mathf.Lerp(liftoffAcceleration, maxAcceleration, Mathf.Clamp01(flightTime / 25f));
             velocity += accel * dt;
 
             // Gravity turn: tilt away from the viewer (+Z, "east") after clearing the tower.
