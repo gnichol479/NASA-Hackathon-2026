@@ -17,6 +17,9 @@ public class LandingSequenceController : MonoBehaviour
     [Header("Stationary information panel")]
     [Tooltip("Position relative to the landing site. X = sideways, Y = height above terrain, Z = forward/back.")]
     public Vector3 panelOffset = new Vector3(1.8f, 1.45f, -3f);
+    [Header("Mars landscape")]
+    public bool immersiveEnvironment = true;
+    [Range(0, 200)] public int sceneryRockCount = 95;
     XROrigin origin;
     GameObject canopy, rock, berries;
     RectTransform panel;
@@ -48,6 +51,7 @@ public class LandingSequenceController : MonoBehaviour
             assets.Add(sky);
         }
         site = Surface(opportunityRover.transform.position);
+        if (immersiveEnvironment) BuildEnvironment();
         var renderers = opportunityRover.GetComponentsInChildren<Renderer>(true);
         if (renderers.Length > 0)
         {
@@ -128,6 +132,107 @@ public class LandingSequenceController : MonoBehaviour
         material.color = color;
         assets.Add(material);
         return material;
+    }
+
+    void BuildEnvironment()
+    {
+        var root = new GameObject("Mars Landscape (scenery)").transform;
+        root.SetParent(transform, false);
+        root.position = site;
+        root.rotation = Quaternion.identity;
+        RenderSettings.fogColor = new Color(0.59f, 0.39f, 0.27f);
+        RenderSettings.fogDensity = 0.006f;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(0.46f, 0.35f, 0.28f);
+        RenderSettings.ambientEquatorColor = new Color(0.36f, 0.25f, 0.18f);
+        RenderSettings.ambientGroundColor = new Color(0.20f, 0.14f, 0.11f);
+        if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_GroundColor"))
+            RenderSettings.skybox.SetColor("_GroundColor", RenderSettings.fogColor);
+
+        // Low rolling terrain surrounds the authored walking area in every direction.
+        // This is an illustrative landscape, not a reconstruction of NASA elevation data.
+        const int segments = 128;
+        const int rings = 18;
+        var vertices = new List<Vector3>();
+        var triangles = new List<int>();
+        for (int ring = 0; ring < rings; ring++)
+        {
+            float radius = Mathf.Lerp(18f, 300f, ring / (float)(rings - 1));
+            for (int j = 0; j <= segments; j++)
+            {
+                float angle = j * Mathf.PI * 2f / segments;
+                float x = Mathf.Cos(angle) * radius;
+                float z = Mathf.Sin(angle) * radius;
+                float height = -0.5f;
+                var ray = new Ray(site + new Vector3(x, 1000f, z), Vector3.down);
+                foreach (var terrain in Terrain.activeTerrains)
+                {
+                    var collider = terrain.GetComponent<TerrainCollider>();
+                    if (collider != null && collider.Raycast(ray, out var hit, 2000f))
+                    { height = hit.point.y - site.y - 0.15f; break; }
+                }
+                float distant = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(35f, 100f, radius));
+                float hills = (Mathf.PerlinNoise(x * 0.014f + 12f, z * 0.014f + 31f) - 0.35f) * 14f;
+                vertices.Add(new Vector3(x, height + distant * Mathf.Max(0f, hills), z));
+                if (ring == rings - 1 || j == segments) continue;
+                int a = ring * (segments + 1) + j;
+                int b = a + segments + 1;
+                triangles.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b });
+            }
+        }
+        SceneryMesh("Distant Plains and Ridges", root, vertices, triangles,
+            MakeMaterial(new Color(0.46f, 0.29f, 0.19f)));
+
+        // Deterministic, combined low-poly stones: one renderer, no physics overhead.
+        vertices.Clear();
+        triangles.Clear();
+        var random = new System.Random(240125);
+        var points = new[] { Vector3.up, Vector3.down, Vector3.left, Vector3.forward, Vector3.right, Vector3.back };
+        var faces = new[] { 0,2,3, 0,3,4, 0,4,5, 0,5,2, 1,3,2, 1,4,3, 1,5,4, 1,2,5 };
+        for (int i = 0; i < sceneryRockCount * 4 && vertices.Count < sceneryRockCount * 6; i++)
+        {
+            float angle = (float)random.NextDouble() * Mathf.PI * 2f;
+            float radius = Mathf.Lerp(4f, 37f, Mathf.Sqrt((float)random.NextDouble()));
+            var offset = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            // Keep the landing, approach corridor, science rock and panel area clear.
+            if (Mathf.Abs(offset.x) < 2f && offset.z > -16f && offset.z < 4f) continue;
+            if (Vector2.Distance(new Vector2(offset.x, offset.z), new Vector2(2.2f, -3f)) < 2.2f) continue;
+            if (Vector2.Distance(new Vector2(offset.x, offset.z), new Vector2(panelOffset.x, panelOffset.z)) < 1.5f) continue;
+            bool found = false;
+            var position = site + offset;
+            foreach (var terrain in Terrain.activeTerrains)
+            {
+                var collider = terrain.GetComponent<TerrainCollider>();
+                if (collider != null && collider.Raycast(new Ray(position + Vector3.up * 1000f, Vector3.down), out var hit, 2000f))
+                { position = hit.point; found = true; break; }
+            }
+            if (!found) continue;
+            float size = Mathf.Lerp(0.09f, 0.48f, (float)random.NextDouble());
+            var rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f);
+            int start = vertices.Count;
+            foreach (var point in points)
+                vertices.Add(position - site + Vector3.up * size * 0.16f
+                    + rotation * Vector3.Scale(point, new Vector3(size, size * 0.45f, size * 0.8f)));
+            foreach (int index in faces) triangles.Add(start + index);
+        }
+        SceneryMesh("Scattered Martian Stones", root, vertices, triangles,
+            MakeMaterial(new Color(0.32f, 0.23f, 0.17f)));
+    }
+
+    void SceneryMesh(string name, Transform parent, List<Vector3> vertices, List<int> triangles, Material material)
+    {
+        var mesh = new Mesh { name = name };
+        mesh.SetVertices(vertices);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        assets.Add(mesh);
+        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+        go.transform.SetParent(parent, false);
+        go.GetComponent<MeshFilter>().sharedMesh = mesh;
+        var renderer = go.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = material;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     GameObject Shape(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material, bool keepCollider = false)
