@@ -187,6 +187,69 @@ namespace NasaHack.EditorTools
             return wake;
         }
 
+        // ---------- Title screen ----------
+
+        const string TitleScenePath = "Assets/Shared/Scenes/TitleScreen.unity";
+
+        [MenuItem("NasaHack/Build Title Screen")]
+        public static void BuildTitleScreen()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogWarning("[NasaHack] Stop Play mode first.");
+                return;
+            }
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var scene = EditorSceneManager.OpenScene(TitleScenePath);
+            if (GameObject.Find("Title Panel") != null)
+            {
+                Debug.Log("[NasaHack] Title screen already built, skipped.");
+                return;
+            }
+
+            SetupMars(SkyMaterial());
+
+            var ground = AssetDatabase.LoadAssetAtPath<Material>(SettingsDir + "/Mars Ground.mat");
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Ground (teleport)";
+            floor.transform.localScale = new Vector3(10f, 1f, 10f);
+            if (ground != null) floor.GetComponent<MeshRenderer>().sharedMaterial = ground;
+            floor.AddComponent<TeleportationArea>();
+
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPath);
+            if (model != null)
+            {
+                var root = new GameObject("Opportunity").transform;
+                root.position = new Vector3(2.2f, 0f, 5f);
+                root.rotation = Quaternion.Euler(0f, -35f, 0f);
+                AddModel(root, model, 0.5f, out _, HiddenParts(model), fitWidth: false);
+            }
+
+            var flow = Object.FindObjectOfType<LoadNextScene>();
+            var panel = UiFactory.CreatePanel("Title Panel", null, 900f);
+            Place(panel, new Vector3(-0.6f, 1.6f, 2.6f));
+            var narration = panel.gameObject.AddComponent<NarrationPanel>();
+            narration.titleText = UiFactory.AddText(panel, "Title", "", 64f, FontStyles.Bold);
+            narration.titleText.color = UiFactory.Accent;
+            narration.bodyText = UiFactory.AddText(panel, "Body", "", 34f, FontStyles.Normal);
+            narration.nextButton = UiFactory.AddButton(panel, "Begin Button", "Begin", out var label);
+            narration.buttonLabel = label;
+            narration.finishLabel = "Begin";
+            narration.beats = new[]
+            {
+                Beat("Abandoned but not Forgotten",
+                    "A VR field trip to the machines NASA left behind.\n\n" +
+                    "Your first stop: Mars, 2026. A rover that was built to last 90 days has been silent for eight years. " +
+                    "Find out what it did, how it got there, and why it still matters.\n\n" +
+                    "NASA Space Apps 2026. Team: Yayo, Gibson, Dominic, Susan."),
+            };
+            if (flow != null) UnityEventTools.AddVoidPersistentListener(narration.onFinished, new UnityAction(flow.Load));
+
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("[NasaHack] Built " + TitleScenePath);
+        }
+
         // ---------- Shared pieces ----------
 
         static NarrationPanel CreateNarration(Vector3 position, bool hideButtonOnLastBeat)
