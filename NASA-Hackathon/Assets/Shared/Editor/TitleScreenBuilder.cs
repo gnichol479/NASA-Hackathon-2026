@@ -57,16 +57,7 @@ namespace NasaHack.EditorTools
             if (rig == null) { Debug.LogError("[Title] Missing " + RigPath); return; }
             PrefabUtility.InstantiatePrefab(rig, scene);
 
-            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            floor.name = "Ground (teleport)";
-            floor.transform.localScale = new Vector3(40f, 1f, 40f);
-            // Its own soil material: the team's shared Mars Ground is made for daylight.
-            var groundMat = Asset<Material>("Mars Dusk Ground.mat", () => new Material(Shader.Find("Universal Render Pipeline/Lit")));
-            groundMat.SetColor("_BaseColor", new Color(0.36f, 0.215f, 0.15f));
-            groundMat.SetFloat("_Smoothness", 0.05f);
-            EditorUtility.SetDirty(groundMat);
-            floor.GetComponent<MeshRenderer>().sharedMaterial = groundMat;
-            floor.AddComponent<TeleportationArea>();
+            BuildGround();
 
 
             // ---------------------------------------------------------------- Sky, light, fog
@@ -124,6 +115,7 @@ namespace NasaHack.EditorTools
 
             var rng = new System.Random(2004);
             float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+            var packRocks = PackRocks();
             for (int i = 0; i < 320; i++)
             {
                 var p = new Vector3(R(-45f, 45f), 0f, R(-25f, 70f));
@@ -131,8 +123,17 @@ namespace NasaHack.EditorTools
                 if (Mathf.Abs(p.x) < 2.4f && p.z > 1f && p.z < 3.4f) continue; // and the Begin panel
                 if (Vector3.Distance(p, new Vector3(-2.4f, 0f, 8f)) < 2.2f) continue; // and the rover
                 float s = Mathf.Pow(R(0f, 1f), 3f) * (p.magnitude < 7f ? 0.2f : 0.75f) + 0.07f; // only pebbles near the player
-                Blob(land, "Rock", sphere, rockMat, p + Vector3.up * s * 0.2f,
-                     new Vector3(s * R(0.85f, 1.3f), s * R(0.55f, 0.9f), s * R(0.85f, 1.3f)), R(0f, 360f)).transform.Rotate(R(-10f, 10f), 0f, R(-10f, 10f));
+                if (packRocks.Count > 0)
+                {
+                    var (mesh, mat) = packRocks[rng.Next(packRocks.Count)];
+                    var b = mesh.bounds;
+                    float scale = s * 2.2f / Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z));
+                    var rock = Blob(land, "Rock", mesh, mat, p, Vector3.one * scale, R(0f, 360f));
+                    rock.transform.position = p - Vector3.up * (b.min.y * scale + s * 0.25f); // sit on the ground, a little buried
+                }
+                else
+                    Blob(land, "Rock", sphere, rockMat, p + Vector3.up * s * 0.2f,
+                         new Vector3(s * R(0.85f, 1.3f), s * R(0.55f, 0.9f), s * R(0.85f, 1.3f)), R(0f, 360f)).transform.Rotate(R(-10f, 10f), 0f, R(-10f, 10f));
             }
             foreach (var t in land.GetComponentsInChildren<Transform>(true))
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic);
@@ -336,6 +337,113 @@ namespace NasaHack.EditorTools
             go.AddComponent<Canvas>().renderMode = RenderMode.WorldSpace;
             ((RectTransform)go.transform).sizeDelta = new Vector2(widthPx, size * 1.6f);
             return Line(go.transform, "Text", text, size, color, 0f, 1f, 2f, FontStyles.Normal);
+        }
+
+        // ---------------------------------------------------------------- Ground: the team's Mars textures
+
+        // A flat terrain painted with the same terrain layers as Title, Arrival and Legacy
+        // (built by MarsEnvironmentBuilder in Assets/Shared/Mars). With the free "Mars Landscape 3D" pack
+        // imported: rippled sand, pebbles, gravel and bedrock. Without it: the team's generated sand and rock.
+        const string MarsDir = "Assets/Shared/Mars";
+        const string PackDir = "Assets/Mars Landscape 3D";
+        static readonly Color DuskTint = new Color(0.5f, 0.31f, 0.22f); // multiplies the pale daylight sand textures
+
+        static void BuildGround()
+        {
+            bool pack = AssetDatabase.IsValidFolder(PackDir);
+            var names = pack ? new[] { "ML Sand", "ML Pebbles", "ML Gravel", "ML Bedrock" } : new[] { "Sand", "Rock" };
+            var shared = names.Select(n => AssetDatabase.LoadAssetAtPath<TerrainLayer>(MarsDir + "/" + n + ".terrainlayer")).ToArray();
+            if (shared.Any(l => l == null))
+            {
+                Debug.LogWarning("[Title] Mars terrain layers not found in " + MarsDir + ". Run NasaHack > Build Mars Environment first.");
+                var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                floor.name = "Ground (teleport)";
+                floor.transform.localScale = new Vector3(60f, 1f, 60f);
+                floor.AddComponent<TeleportationArea>();
+                return;
+            }
+
+            // The shared layers are tuned for daylight scenes. This scene gets its own copies, tinted darker and
+            // redder for dusk, so the shared ones (and every other scene) stay exactly as they are.
+            var layers = shared.Select(src =>
+            {
+                var path = AssetDir + "/" + src.name + " (Dusk).terrainlayer";
+                var copy = AssetDatabase.LoadAssetAtPath<TerrainLayer>(path);
+                if (copy == null) { copy = new TerrainLayer(); AssetDatabase.CreateAsset(copy, path); }
+                copy.diffuseTexture = src.diffuseTexture;
+                copy.normalMapTexture = src.normalMapTexture;
+                copy.normalScale = src.normalScale;
+                copy.tileSize = src.tileSize;
+                copy.tileOffset = src.tileOffset;
+                copy.metallic = 0f;
+                copy.smoothness = 0.02f;
+                copy.diffuseRemapMin = Vector4.zero;
+                copy.diffuseRemapMax = new Vector4(DuskTint.r, DuskTint.g, DuskTint.b, 1f);
+                EditorUtility.SetDirty(copy);
+                return copy;
+            }).ToArray();
+
+            const float Size = 600f;
+            var dataPath = AssetDir + "/Title Ground.asset";
+            if (File.Exists(dataPath)) AssetDatabase.DeleteAsset(dataPath);
+            var data = new TerrainData { heightmapResolution = 33 };
+            data.size = new Vector3(Size, 10f, Size);
+            data.terrainLayers = layers;
+
+            // Mostly rippled sand, with patches of pebbles and gravel and the odd slab of bedrock.
+            const int Res = 512;
+            data.alphamapResolution = Res;
+            var alpha = new float[Res, Res, layers.Length];
+            for (int z = 0; z < Res; z++)
+                for (int x = 0; x < Res; x++)
+                {
+                    float nx = x / (float)(Res - 1) * Size / 40f, nz = z / (float)(Res - 1) * Size / 40f;
+                    float n1 = Mathf.PerlinNoise(nx + 3.1f, nz + 7.7f);
+                    float n2 = Mathf.PerlinNoise(nx * 3.3f + 5.3f, nz * 3.3f + 9.1f);
+                    float n3 = Mathf.PerlinNoise(nx * 0.6f + 11.2f, nz * 0.6f + 1.4f);
+                    if (layers.Length == 4)
+                    {
+                        float bedrock = Mathf.Clamp01((n3 - 0.68f) * 5f);
+                        float gravel = Mathf.Clamp01((n2 - 0.6f) * 4f) * (1f - bedrock);
+                        float pebbles = Mathf.Clamp01((n1 - 0.45f) * 3f) * (1f - gravel - bedrock);
+                        float sand = Mathf.Max(0f, 1f - bedrock - gravel - pebbles);
+                        float sum = sand + pebbles + gravel + bedrock;
+                        alpha[z, x, 0] = sand / sum; alpha[z, x, 1] = pebbles / sum; alpha[z, x, 2] = gravel / sum; alpha[z, x, 3] = bedrock / sum;
+                    }
+                    else
+                    {
+                        float rock = Mathf.Clamp01((n1 - 0.62f) * 4f) * 0.6f;
+                        alpha[z, x, 0] = 1f - rock; alpha[z, x, 1] = rock;
+                    }
+                }
+            data.SetAlphamaps(0, 0, alpha);
+            AssetDatabase.CreateAsset(data, dataPath);
+
+            var go = Terrain.CreateTerrainGameObject(data);
+            go.name = "Ground (teleport)";
+            go.transform.position = new Vector3(-Size / 2f, 0f, -Size / 2f);
+            var terrain = go.GetComponent<Terrain>();
+            terrain.materialTemplate = GraphicsSettings.currentRenderPipeline.defaultTerrainMaterial;
+            terrain.basemapDistance = 400f;
+            terrain.drawInstanced = true;
+            go.AddComponent<TeleportationArea>();
+        }
+
+        // The pack's rock meshes, with the URP materials the team's Mars builder made for them.
+        static System.Collections.Generic.List<(Mesh, Material)> PackRocks()
+        {
+            var list = new System.Collections.Generic.List<(Mesh, Material)>();
+            if (!AssetDatabase.IsValidFolder(PackDir)) return list;
+            foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { PackDir + "/Prefabs" }))
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
+                var mf = prefab != null ? prefab.GetComponentInChildren<MeshFilter>() : null;
+                var mr = prefab != null ? prefab.GetComponentInChildren<MeshRenderer>() : null;
+                if (mf == null || mf.sharedMesh == null || mr == null || mr.sharedMaterial == null) continue;
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(MarsDir + "/" + mr.sharedMaterial.name + " (URP).mat");
+                if (mat != null) list.Add((mf.sharedMesh, mat));
+            }
+            return list;
         }
 
         // ---------------------------------------------------------------- helpers

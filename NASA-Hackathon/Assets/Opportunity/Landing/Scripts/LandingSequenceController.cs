@@ -14,14 +14,11 @@ public class LandingSequenceController : MonoBehaviour
     public float landingDuration = 4f;
     [Tooltip("Target horizontal model size in metres; matches the team's other Opportunity scenes.")]
     [Min(0.1f)] public float roverSizeMeters = 2.3f;
-    [Header("Stationary information panel")]
-    [Tooltip("Position relative to the landing site. X = sideways, Y = height above terrain, Z = forward/back.")]
-    public Vector3 panelOffset = new Vector3(1.8f, 1.45f, -3f);
     [Header("Mars landscape")]
-    public bool immersiveEnvironment = true;
-    [Range(0, 200)] public int sceneryRockCount = 95;
+
+
     public Material legacyRockMaterial;
-    public TerrainLayer legacySandLayer;
+
     [Header("Sample feedback")]
     [Range(0f, 1f)] public float sampleSoundVolume = 0.18f;
     [Header("Narration")]
@@ -37,9 +34,43 @@ public class LandingSequenceController : MonoBehaviour
     public AudioClip[] sampleNarrationClips = new AudioClip[3];
     public AudioClip incorrectConclusionNarration;
     public AudioClip conclusionNarration;
-    AudioSource sampleAudio;
     AudioSource narrationAudio;
+    AudioSource sampleAudio;
     AudioClip sampleRecordedClip;
+    [Header("Detailed rover and deployment")]
+    public GameObject detailedRoverPrefab;
+    public AnimationClip deploymentClip;
+    [Min(1f)] public float deploymentSeconds = 4f;
+    [Header("Third-person view")]
+    [Min(1.5f)] public float thirdPersonDistance = 3f;
+    [Min(1.5f)] public float thirdPersonHeight = 2.5f;
+    float deployedTime, compactTime, headHeightAtHandoff;
+    Vector3 previousRoverPosition;
+    Transform armTip, toolSpinner, mast;
+    readonly List<Transform> armJoints = new List<Transform>();
+    readonly List<Transform> wheels = new List<Transform>();
+    readonly Dictionary<Transform, Quaternion> restRotations = new Dictionary<Transform, Quaternion>();
+    static readonly string[] HiddenModelParts = {
+            "_root",
+            "_root/body/arm_mount/arm_base/Cube.010",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008/arm_joint2/Cube.007",
+            "_root/body/mast/Cube.012",
+            "_root/body/panels_left/panels_left_front/Cube.006",
+            "_root/body/panels_right/panels_right_front/Cube.029",
+            "_root/body/suspension_left_front/Cube.025",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022/suspension_left_front_axl/Cube.005",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/Cube.003",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021/suspension_left_rear_axl/Cube.004",
+            "_root/body/suspension_right_front/Cube.000",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001/suspension_right_front_axl/Cube.009",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/Cube.002",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020/suspension_right_rear_axl/Cube",
+        };
     XROrigin origin;
     GameObject canopy, missionRoot;
     readonly GameObject[] studyRocks = new GameObject[3];
@@ -52,7 +83,13 @@ public class LandingSequenceController : MonoBehaviour
     RectTransform panel;
     TextMeshProUGUI story;
     Vector3 site;
-    bool ready, discovered;
+    bool ready, discovered, roverMode;
+    float roverPivotHeight;
+    Quaternion roverBaseRotation;
+    int activeTask;
+    readonly RectTransform[] taskPanels = new RectTransform[3];
+    readonly TextMeshProUGUI[] taskBodies = new TextMeshProUGUI[3];
+    readonly GameObject[] taskButtons = new GameObject[3];
     readonly List<Object> assets = new List<Object>();
 
     void Awake()
@@ -71,38 +108,14 @@ public class LandingSequenceController : MonoBehaviour
         foreach (var terrain in Terrain.activeTerrains)
             if (terrain.GetComponent<Collider>() != null && terrain.GetComponent<TeleportationArea>() == null)
                 terrain.gameObject.AddComponent<TeleportationArea>();
-        RenderSettings.fog = true;
-        RenderSettings.fogColor = new Color(0.84f, 0.70f, 0.56f);
-        RenderSettings.fogMode = FogMode.Exponential;
-        RenderSettings.fogDensity = 0.0015f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
-        RenderSettings.ambientIntensity = 1.1f;
-        foreach (var light in FindObjectsOfType<Light>())
-        {
-            if (light.type != LightType.Directional) continue;
-            light.color = new Color(1f, 0.9f, 0.78f);
-            light.intensity = 1.1f;
-            light.shadows = LightShadows.Soft;
-            break;
-        }
-        DynamicGI.UpdateEnvironment();
-        if (legacySandLayer != null)
-            foreach (var terrain in Terrain.activeTerrains)
-            {
-                // Keep sculpted heights and painted weights; replace texture layers on a private copy.
-                var data = Instantiate(terrain.terrainData);
-                assets.Add(data);
-                var layers = data.terrainLayers;
-                for (int i = 0; i < layers.Length; i++) layers[i] = legacySandLayer;
-                if (layers.Length == 0) layers = new[] { legacySandLayer };
-                data.terrainLayers = layers;
-                terrain.terrainData = data;
-                var collider = terrain.GetComponent<TerrainCollider>();
-                if (collider != null) collider.terrainData = data;
-            }
+        PrepareDetailedRover();
+        // Landing deliberately shares Legacy's environment; do not recolor or regenerate it.
+        opportunityRover.transform.position = new Vector3(0f, 0f, 3f);
         site = Surface(opportunityRover.transform.position);
-        if (immersiveEnvironment) BuildEnvironment();
-        var renderers = opportunityRover.GetComponentsInChildren<Renderer>(true);
+        var visibleRenderers = new List<Renderer>();
+        foreach(var renderer in opportunityRover.GetComponentsInChildren<Renderer>(true))
+            if(renderer.enabled && renderer.gameObject.activeInHierarchy) visibleRenderers.Add(renderer);
+        var renderers = visibleRenderers.ToArray();
         if (renderers.Length > 0)
         {
             var bounds = renderers[0].bounds;
@@ -116,6 +129,8 @@ public class LandingSequenceController : MonoBehaviour
             }
             opportunityRover.transform.position += Vector3.up * (site.y - bounds.min.y);
         }
+        roverPivotHeight = opportunityRover.transform.position.y - site.y;
+        roverBaseRotation = opportunityRover.transform.rotation;
         opportunityRover.SetActive(false);
         var oldPanel = GameObject.Find("Oppertunity_InfoCanvas") ?? GameObject.Find("Opportunity_InfoCanvas");
         if (oldPanel != null) oldPanel.SetActive(false);
@@ -136,20 +151,25 @@ public class LandingSequenceController : MonoBehaviour
         }
         lander.SetActive(false);
         opportunityRover.SetActive(true);
+        yield return DeployRover();
         var fader = ScreenFader.Instance;
         if (origin != null && fader != null)
         {
             yield return fader.Fade(1f, 0.25f);
-            MovePlayer(Surface(site - Vector3.forward * 4.5f));
+            EnterRover();
             yield return null;
             yield return fader.Fade(0f, 0.25f);
         }
+        if (!roverMode) EnterRover();
         panel.gameObject.SetActive(true);
         missionRoot.SetActive(true);
         foreach (var label in rockLabels)
             if (Camera.main != null) label.transform.rotation = Quaternion.LookRotation(label.transform.position - Camera.main.transform.position);
         if (Camera.main != null) UiFactory.FacePoint(panel, Camera.main.transform.position);
+        foreach (var taskPanel in taskPanels)
+            if (Camera.main != null) UiFactory.FacePoint(taskPanel, Camera.main.transform.position);
         ready = true;
+        story.text = landingIntroductionText;
         PlayNarration(landingIntroductionNarration);
     }
 
@@ -185,102 +205,6 @@ public class LandingSequenceController : MonoBehaviour
         material.color = color;
         assets.Add(material);
         return material;
-    }
-
-    void BuildEnvironment()
-    {
-        var root = new GameObject("Mars Landscape (scenery)").transform;
-        root.SetParent(transform, false);
-        root.position = site;
-        root.rotation = Quaternion.identity;
-
-        // Low rolling terrain surrounds the authored walking area in every direction.
-        // This is an illustrative landscape, not a reconstruction of NASA elevation data.
-        const int segments = 128;
-        const int rings = 18;
-        var vertices = new List<Vector3>();
-        var triangles = new List<int>();
-        for (int ring = 0; ring < rings; ring++)
-        {
-            float radius = Mathf.Lerp(18f, 300f, ring / (float)(rings - 1));
-            for (int j = 0; j <= segments; j++)
-            {
-                float angle = j * Mathf.PI * 2f / segments;
-                float x = Mathf.Cos(angle) * radius;
-                float z = Mathf.Sin(angle) * radius;
-                float height = -0.5f;
-                var ray = new Ray(site + new Vector3(x, 1000f, z), Vector3.down);
-                foreach (var terrain in Terrain.activeTerrains)
-                {
-                    var collider = terrain.GetComponent<TerrainCollider>();
-                    if (collider != null && collider.Raycast(ray, out var hit, 2000f))
-                    { height = hit.point.y - site.y - 0.15f; break; }
-                }
-                float distant = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(35f, 100f, radius));
-                float hills = (Mathf.PerlinNoise(x * 0.014f + 12f, z * 0.014f + 31f) - 0.35f) * 14f;
-                vertices.Add(new Vector3(x, height + distant * Mathf.Max(0f, hills), z));
-                if (ring == rings - 1 || j == segments) continue;
-                int a = ring * (segments + 1) + j;
-                int b = a + segments + 1;
-                triangles.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b });
-            }
-        }
-        SceneryMesh("Distant Plains and Ridges", root, vertices, triangles,
-            MakeMaterial(new Color(0.61f, 0.45f, 0.32f)));
-
-        // Deterministic, combined low-poly stones: one renderer, no physics overhead.
-        vertices.Clear();
-        triangles.Clear();
-        var random = new System.Random(240125);
-        var points = new[] { Vector3.up, Vector3.down, Vector3.left, Vector3.forward, Vector3.right, Vector3.back };
-        var faces = new[] { 0,2,3, 0,3,4, 0,4,5, 0,5,2, 1,3,2, 1,4,3, 1,5,4, 1,2,5 };
-        for (int i = 0; i < sceneryRockCount * 4 && vertices.Count < sceneryRockCount * 6; i++)
-        {
-            float angle = (float)random.NextDouble() * Mathf.PI * 2f;
-            float radius = Mathf.Lerp(4f, 37f, Mathf.Sqrt((float)random.NextDouble()));
-            var offset = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-            // Keep the landing, approach corridor, science rock and panel area clear.
-            if (Mathf.Abs(offset.x) < 2f && offset.z > -16f && offset.z < 4f) continue;
-            if (Vector2.Distance(new Vector2(offset.x, offset.z), new Vector2(2.2f, -3f)) < 2.2f) continue;
-            if (Vector2.Distance(new Vector2(offset.x, offset.z), new Vector2(panelOffset.x, panelOffset.z)) < 1.5f) continue;
-            bool found = false;
-            var position = site + offset;
-            foreach (var terrain in Terrain.activeTerrains)
-            {
-                var collider = terrain.GetComponent<TerrainCollider>();
-                if (collider != null && collider.Raycast(new Ray(position + Vector3.up * 1000f, Vector3.down), out var hit, 2000f))
-                { position = hit.point; found = true; break; }
-            }
-            if (!found) continue;
-            float size = Mathf.Lerp(0.09f, 0.48f, (float)random.NextDouble());
-            var rotation = Quaternion.Euler(0f, (float)random.NextDouble() * 360f, 0f);
-            int start = vertices.Count;
-            foreach (var point in points)
-                vertices.Add(position - site + Vector3.up * size * 0.16f
-                    + rotation * Vector3.Scale(point, new Vector3(size, size * 0.45f, size * 0.8f)));
-            foreach (int index in faces) triangles.Add(start + index);
-        }
-        SceneryMesh("Scattered Martian Stones", root, vertices, triangles,
-            legacyRockMaterial != null ? legacyRockMaterial : MakeMaterial(new Color(0.55f, 0.43f, 0.32f)));
-    }
-
-    void SceneryMesh(string name, Transform parent, List<Vector3> vertices, List<int> triangles, Material material)
-    {
-        var mesh = new Mesh { name = name };
-        mesh.SetVertices(vertices);
-        var uv = new List<Vector2>();
-        foreach (var vertex in vertices) uv.Add(new Vector2(vertex.x, vertex.z) * 0.5f);
-        mesh.SetUVs(0, uv);
-        mesh.SetTriangles(triangles, 0);
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-        assets.Add(mesh);
-        var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
-        go.transform.SetParent(parent, false);
-        go.GetComponent<MeshFilter>().sharedMesh = mesh;
-        var renderer = go.GetComponent<MeshRenderer>();
-        renderer.sharedMaterial = material;
-        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     GameObject Shape(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material, bool keepCollider = false)
@@ -362,141 +286,344 @@ public class LandingSequenceController : MonoBehaviour
         }
     }
 
+    RectTransform MissionPanel(string name, string step, string title, Vector3 position, out TextMeshProUGUI body)
+    {
+        var canvas = UiFactory.CreatePanel(name, transform, 1400f);
+        canvas.GetComponent<Canvas>().worldCamera = Camera.main;
+        canvas.position = Surface(position) + Vector3.up * 1.35f;
+        var layout = canvas.GetComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        layout.padding = new RectOffset(55,55,40,40);
+        layout.spacing = 24f;
+        var caption = UiFactory.AddText(canvas, "Mission", step, 32f, FontStyles.Bold);
+        caption.color = UiFactory.Accent;
+        UiFactory.AddText(canvas, "Title", title, 64f, FontStyles.Bold);
+        body = UiFactory.AddText(canvas, "Instructions", "", 43f, FontStyles.Normal);
+        return canvas;
+    }
+
     void BuildMission()
     {
-        panel = UiFactory.CreatePanel("Landing Science Panel", transform, 1800f);
-        panel.GetComponent<Canvas>().worldCamera = Camera.main;
-        panel.position = Surface(site + new Vector3(panelOffset.x, 0f, panelOffset.z)) + Vector3.up * panelOffset.y;
-        UiFactory.AddText(panel, "Title", "Did Mars once have liquid water?", 68f, FontStyles.Bold);
-        story = UiFactory.AddText(panel, "Story", "", 46f, FontStyles.Normal);
-        var water = UiFactory.AddButton(panel, "Water Conclusion", "Evidence of ancient liquid water", out _);
-        answerWater = water.gameObject;
-        water.onClick.AddListener(() => SubmitConclusion(true));
-        var life = UiFactory.AddButton(panel, "Life Conclusion", "Proof that living organisms were found", out _);
-        answerLife = life.gameObject;
-        life.onClick.AddListener(() => SubmitConclusion(false));
-        answerWater.SetActive(false);
-        answerLife.SetActive(false);
-        var next = UiFactory.AddButton(panel, "Continue to Legacy", "Continue to Opportunity's legacy", out _);
-        next.gameObject.SetActive(false);
-        next.onClick.AddListener(ContinueToLegacy);
-        missionRoot = new GameObject("Past Water Investigation");
-        missionRoot.transform.SetParent(transform, false);
-        var offsets = new[] { new Vector3(2.2f,0f,-3f), new Vector3(-2.2f,0f,-2f), new Vector3(3.5f,0f,1f) };
+        panel = MissionPanel("Rover Briefing Canvas", "OPPORTUNITY / SURFACE OPERATIONS",
+            "Opportunity: surface control", site + new Vector3(1.8f,0f,2.5f), out story);
+        story.text = landingIntroductionText;
+        UiFactory.AddButton(panel, "Begin", "Begin mission", out _).onClick.AddListener(BeginMission);
+        missionRoot = new GameObject("Opportunity Water Science Tasks");
+        missionRoot.transform.SetParent(transform,false);
+        var offsets = new[] { new Vector3(-2.6f,0f,4f), new Vector3(2.6f,0f,7f), new Vector3(-2f,0f,10f) };
+        var titles = new[] { "Look closer at the rock", "Read the mineral evidence", "Build your conclusion" };
+        var instructions = new[] {
+            "TASK 1: MICROSCOPIC IMAGER\nApproach Sample 1. Select the rock to examine the small spheres embedded in it.\nDesktop: approach and press E.",
+            "TASK 2: MINERAL ANALYSIS\nApproach Sample 2. Select it to run a simplified mineral reading inspired by Opportunity's spectrometer.\nDesktop: approach and press E.",
+            "TASK 3: COMPARE THE EVIDENCE\nSelect Sample 3 to inspect its red dust, then decide what all three observations can tell us.\nDesktop: approach and press E."
+        };
         var stone = legacyRockMaterial != null ? legacyRockMaterial : MakeMaterial(new Color(0.48f,0.29f,0.19f));
         var mineral = MakeMaterial(new Color(0.19f,0.17f,0.16f));
-        for (int i = 0; i < studyRocks.Length; i++)
+        for (int i=0;i<3;i++)
         {
-            int index = i;
-            var target = Shape("Water Investigation Rock " + (i+1), PrimitiveType.Sphere, missionRoot.transform,
-                Vector3.zero, new Vector3(1.1f,0.65f,0.85f), stone, true);
-            target.transform.position = Surface(site + offsets[i]) + Vector3.up * 0.25f;
-            studyRocks[i] = target;
-            target.AddComponent<XRSimpleInteractable>().selectEntered.AddListener(_ => ScanRock(index));
-            var label = new GameObject("Sample " + (i+1) + " Label").AddComponent<TextMeshPro>();
-            label.transform.SetParent(missionRoot.transform, false);
-            label.transform.position = target.transform.position + Vector3.up * 0.95f;
-            label.text = "SAMPLE " + (i+1) + "\nSelect to investigate";
-            label.fontSize = 2.5f;
-            label.alignment = TextAlignmentOptions.Center;
-            label.rectTransform.sizeDelta = new Vector2(1.6f,0.5f);
-            label.color = new Color(1f,0.8f,0.4f);
-            rockLabels[i] = label;
-            clues[i] = new GameObject("Sample " + (i+1) + " Results");
-            clues[i].transform.SetParent(target.transform, false);
-            if (i == 0)
-                for (int j = 0; j < 9; j++)
-                    Shape("Hematite (enlarged)", PrimitiveType.Sphere, clues[i].transform,
-                        new Vector3((j%3-1)*0.15f,0.43f,(j/3-1)*0.15f), Vector3.one*0.075f, mineral);
-            // Mineral identity comes from the simulated instrument readout, not a visual color guess.
+            int index=i;
+            var position=Surface(site+offsets[i]);
+            var target=Shape("Science Sample "+(i+1),PrimitiveType.Sphere,missionRoot.transform,Vector3.zero,new Vector3(1.1f,0.65f,0.85f),stone,true);
+            target.transform.position=position+Vector3.up*0.25f;
+            studyRocks[i]=target;
+            target.AddComponent<XRSimpleInteractable>().selectEntered.AddListener(_=>ScanRock(index));
+            var label=new GameObject("Sample "+(i+1)+" Label").AddComponent<TextMeshPro>();
+            label.transform.SetParent(missionRoot.transform,false);
+            label.transform.position=position+Vector3.up*0.95f;
+            label.text="SAMPLE "+(i+1);
+            label.fontSize=2.5f;
+            label.alignment=TextAlignmentOptions.Center;
+            label.rectTransform.sizeDelta=new Vector2(1.5f,0.4f);
+            label.color=UiFactory.Accent;
+            rockLabels[i]=label;
+            clues[i]=new GameObject("Sample "+(i+1)+" Discovery");
+            clues[i].transform.SetParent(target.transform,false);
+            if(i==0) for(int j=0;j<9;j++) Shape("Enlarged hematite sphere",PrimitiveType.Sphere,clues[i].transform,
+                new Vector3((j%3-1)*0.15f,0.43f,(j/3-1)*0.15f),Vector3.one*0.075f,mineral);
             clues[i].SetActive(false);
+            taskPanels[i]=MissionPanel("Task "+(i+1)+" Canvas", "WATER INVESTIGATION / "+(i+1)+" OF 3",titles[i],position+new Vector3(1.4f,0f,0.4f),out taskBodies[i]);
+            taskBodies[i].text=instructions[i];
+            var action=UiFactory.AddButton(taskPanels[i],"Use instrument",i==0?"Focus microscopic imager":i==1?"Run mineral analysis":"Inspect surface dust",out _);
+            action.onClick.AddListener(()=>ScanRock(index));
+            var next=UiFactory.AddButton(taskPanels[i],"Next task",i==0?"Record spheres / next task":i==1?"Record mineral / next task":"Continue to legacy",out _);
+            taskButtons[i]=next.gameObject;
+            next.onClick.AddListener(()=>AdvanceTask(index));
+            next.gameObject.SetActive(false);
+            taskPanels[i].gameObject.SetActive(false);
         }
-        RefreshMission();
-        missionRoot.SetActive(false);
-        panel.gameObject.SetActive(false);
+        answerWater=UiFactory.AddButton(taskPanels[2],"Water conclusion","Evidence of ancient liquid water",out _).gameObject;
+        answerWater.GetComponent<UnityEngine.UI.Button>().onClick.AddListener(()=>SubmitConclusion(true));
+        answerLife=UiFactory.AddButton(taskPanels[2],"Life conclusion","Proof that living organisms were found",out _).gameObject;
+        answerLife.GetComponent<UnityEngine.UI.Button>().onClick.AddListener(()=>SubmitConclusion(false));
+        answerWater.SetActive(false);answerLife.SetActive(false);
+        missionRoot.SetActive(false);panel.gameObject.SetActive(false);
     }
 
-    void RefreshMission(string feedback = "")
+    void PrepareDetailedRover()
     {
-        string notes = "";
-        for (int i = 0; i < examined.Length; i++)
-            if (examined[i] && sampleNarrationText != null && i < sampleNarrationText.Length)
-                notes += "\n\nSample " + (i+1) + ": " + sampleNarrationText[i];
-        string instruction = examinedCount < 3
-            ? "Approach each numbered rock and select it with the controller ray. Desktop: approach and press E.\nSimplified instrument readings inspired by Opportunity's discoveries."
-            : "What do these clues support? Choose below. Desktop: 1 = ancient water; 2 = life found.";
-        story.text = "Samples investigated: " + examinedCount + "/3\n" + instruction + notes + feedback;
-        answerWater.SetActive(examinedCount == 3 && !discovered);
-        answerLife.SetActive(examinedCount == 3 && !discovered);
-    }
-
-    // Desktop accessibility: E investigates the closest sample, within the same range as XR.
-    public void Investigate()
-    {
-        if (!ready || scanning || discovered || Camera.main == null) return;
-        int closest = -1;
-        float distance = 3f;
-        for (int i = 0; i < studyRocks.Length; i++)
+        if(detailedRoverPrefab==null) {Debug.LogWarning("Detailed rover prefab is not assigned; keeping the current rover.",this);return;}
+        opportunityRover.SetActive(false);
+        var model=Instantiate(detailedRoverPrefab,transform);
+        model.name="Opportunity Detailed Rover";
+        model.transform.rotation=Quaternion.Euler(0f,180f,0f);
+        opportunityRover=model;
+        foreach(var animator in model.GetComponentsInChildren<Animator>()) animator.enabled=false;
+        foreach(var animation in model.GetComponentsInChildren<Animation>()) animation.enabled=false;
+        foreach(var path in HiddenModelParts)
         {
-            float d = Vector3.Distance(Camera.main.transform.position, studyRocks[i].transform.position);
-            if (d < distance) { closest = i; distance = d; }
+            var part=model.transform.Find(path);
+            if(part!=null && part.TryGetComponent<Renderer>(out var renderer)) renderer.enabled=false;
         }
-        if (closest >= 0) ScanRock(closest);
-        else RefreshMission("\n\nMove within 3 metres of a numbered sample to investigate it.");
+        if(deploymentClip!=null)
+        {
+            SampleDeployment(0f);float start=Footprint();
+            SampleDeployment(deploymentClip.length);float end=Footprint();
+            deployedTime=end>=start?deploymentClip.length:0f;
+            compactTime=end>=start?0f:deploymentClip.length;
+            SampleDeployment(deployedTime);
+        }
+        foreach(var part in model.GetComponentsInChildren<Transform>())
+        {
+            string name=part.name.ToLowerInvariant();
+            if(name.Contains("wheel") && part.GetComponent<Renderer>()!=null) wheels.Add(part);
+            if(name=="mast") mast=part;
+            if(name=="arm_base" || name=="arm_joint1" || name=="arm_joint2" || name=="arm_wrist") armJoints.Add(part);
+            if(name=="arm_turret") armTip=part;
+        }
+        // Order joints along the hierarchy so CCD can solve from wrist back toward the base.
+        armJoints.Sort((a,b)=>Depth(a).CompareTo(Depth(b)));
+        if(armTip==null && armJoints.Count>0) armTip=armJoints[armJoints.Count-1];
+        if(armTip==null || armJoints.Count==0)
+            Debug.LogWarning("Detailed rover arm joints were not found; check the imported model hierarchy.",this);
     }
+
+    int Depth(Transform part) {int depth=0;while(part.parent!=null){depth++;part=part.parent;}return depth;}
+    float Footprint()
+    {
+        var rs=opportunityRover.GetComponentsInChildren<Renderer>();
+        var b=new Bounds(opportunityRover.transform.position,Vector3.zero);bool first=true;
+        foreach(var r in rs) if(r.enabled){if(first){b=r.bounds;first=false;}else b.Encapsulate(r.bounds);}
+        return b.size.x*b.size.z;
+    }
+    void SampleDeployment(float time)
+    {
+        if(deploymentClip==null)return;
+        var t=opportunityRover.transform;var p=t.position;var r=t.rotation;var scale=t.localScale;
+        deploymentClip.SampleAnimation(opportunityRover,time);
+        t.SetPositionAndRotation(p,r);t.localScale=scale;
+    }
+    IEnumerator DeployRover()
+    {
+        // The original imported unfold clip controls the actual solar-panel joints.
+        if(deploymentClip!=null)
+        {
+            for(float t=0f;t<deploymentSeconds;t+=Time.deltaTime)
+            {
+                SampleDeployment(Mathf.Lerp(compactTime,deployedTime,Mathf.SmoothStep(0f,1f,t/deploymentSeconds)));
+                yield return null;
+            }
+            SampleDeployment(deployedTime);
+        }
+        foreach(var part in armJoints)restRotations[part]=part.localRotation;
+        if(mast!=null)restRotations[mast]=mast.localRotation;
+        if(armTip!=null)
+        {
+            var tool=Shape("Rock Abrasion Tool (illustrative)",PrimitiveType.Cylinder,armTip,Vector3.zero,
+                Vector3.one,MakeMaterial(new Color(0.25f,0.27f,0.29f)));
+            // Set world-sized tool geometry despite the imported model's unit scale.
+            tool.transform.localScale=new Vector3(0.12f,0.035f,0.12f)/Mathf.Max(0.001f,armTip.lossyScale.x);
+            toolSpinner=tool.transform;
+        }
+        previousRoverPosition=opportunityRover.transform.position;
+    }
+
+    void EnterRover()
+    {
+        if(origin==null || origin.Camera==null)return;
+        foreach(var c in opportunityRover.GetComponentsInChildren<Collider>())c.enabled=false;
+        var controllers=new List<CharacterController>();
+        foreach(var c in origin.GetComponentsInChildren<CharacterController>())if(c.enabled){controllers.Add(c);c.enabled=false;}
+        headHeightAtHandoff=origin.CameraInOriginSpaceHeight;
+        origin.MoveCameraToWorldLocation(site-origin.transform.forward*thirdPersonDistance+Vector3.up*thirdPersonHeight);
+        foreach(var c in controllers)c.enabled=true;
+        previousRoverPosition=opportunityRover.transform.position;
+        roverMode=true;
+    }
+
+    void LateUpdate()
+    {
+        if(!roverMode || origin==null || origin.Camera==null)return;
+        if(!scanning)
+        {
+            var camera=origin.Camera.transform;
+            // Keep the observer carrier above terrain while preserving tracked head movement.
+            float groundHeight=Surface(camera.position).y;
+            float desiredHeight=groundHeight+thirdPersonHeight+origin.CameraInOriginSpaceHeight-headHeightAtHandoff;
+            origin.transform.position+=Vector3.up*(desiredHeight-camera.position.y);
+            var offset=Vector3.ProjectOnPlane(origin.transform.forward,Vector3.up).normalized*thirdPersonDistance;
+            var ground=Surface(camera.position+offset);
+            var target=ground+Vector3.up*roverPivotHeight;
+            var delta=target-previousRoverPosition;
+            opportunityRover.transform.position=target;
+            // Keep snap turns and teleportation instantaneous; do not roll wheels for teleports.
+            float travel=Vector3.ProjectOnPlane(delta,Vector3.up).magnitude;
+            if(travel>0.0001f && travel<0.5f)
+            {
+                var heading=Vector3.ProjectOnPlane(delta,Vector3.up).normalized;
+                opportunityRover.transform.rotation=Quaternion.RotateTowards(opportunityRover.transform.rotation,
+                    Quaternion.LookRotation(heading)*roverBaseRotation,100f*Time.deltaTime);
+                foreach(var wheel in wheels)wheel.Rotate(Vector3.right,travel/0.13f*Mathf.Rad2Deg,Space.Self);
+            }
+            previousRoverPosition=target;
+            if(mast!=null && restRotations.ContainsKey(mast))
+                mast.localRotation=restRotations[mast]*Quaternion.Euler(0f,Mathf.Sin(Time.time*0.35f)*8f,0f);
+        }
+    }
+
+    void SolveArm(Vector3 target)
+    {
+        if(armTip==null)return;
+        for(int iteration=0;iteration<5;iteration++)
+            for(int j=armJoints.Count-1;j>=0;j--)
+            {
+                var joint=armJoints[j];var toTip=armTip.position-joint.position;var toTarget=target-joint.position;
+                if(toTip.sqrMagnitude<0.00001f || toTarget.sqrMagnitude<0.00001f)continue;
+                joint.rotation=Quaternion.FromToRotation(toTip,toTarget)*joint.rotation;
+            }
+    }
+
+    IEnumerator AnimateScience(int index)
+    {
+        var target=studyRocks[index];
+        var disabled=new List<LocomotionProvider>();
+        if(origin!=null)foreach(var provider in origin.transform.root.GetComponentsInChildren<LocomotionProvider>())
+            if(provider.enabled){disabled.Add(provider);provider.enabled=false;}
+        var initialRotation=opportunityRover.transform.rotation;
+        var heading=target.transform.position-opportunityRover.transform.position;heading.y=0f;
+        var facing=heading.sqrMagnitude>0.001f?Quaternion.LookRotation(heading)*roverBaseRotation:initialRotation;
+        for(float t=0f;t<0.8f;t+=Time.deltaTime)
+        {
+            opportunityRover.transform.rotation=Quaternion.Slerp(initialRotation,facing,Mathf.SmoothStep(0f,1f,t/0.8f));
+            yield return null;
+        }
+        var contact=target.GetComponent<Collider>().ClosestPoint(armTip!=null?armTip.position:opportunityRover.transform.position);
+        var home=armTip!=null?armTip.position:opportunityRover.transform.position;
+        var rotations=new Dictionary<Transform,Quaternion>();foreach(var j in armJoints)rotations[j]=j.localRotation;
+        if(armTip!=null)
+        {
+            for(float t=0f;t<1.8f;t+=Time.deltaTime){SolveArm(Vector3.Lerp(home,contact,Mathf.SmoothStep(0f,1f,t/1.8f)));yield return null;}
+            // Controlled contact rather than plunging the whole arm through the rock.
+            for(float t=0f;t<2f;t+=Time.deltaTime)
+            {
+                SolveArm(contact);
+                if(index==0 && toolSpinner!=null)toolSpinner.Rotate(Vector3.up,360f*Time.deltaTime,Space.Self);
+                rockLabels[index].text=index==0?"BRUSH / IMAGE":"MINERAL ANALYSIS";
+                yield return null;
+            }
+            var extended=new Dictionary<Transform,Quaternion>();foreach(var j in armJoints)extended[j]=j.localRotation;
+            for(float t=0f;t<1.5f;t+=Time.deltaTime)
+            {
+                foreach(var j in armJoints)j.localRotation=Quaternion.Slerp(extended[j],rotations[j],Mathf.SmoothStep(0f,1f,t/1.5f));
+                yield return null;
+            }
+            foreach(var j in armJoints)j.localRotation=rotations[j];
+        }
+        foreach(var provider in disabled)if(provider!=null)provider.enabled=true;
+        previousRoverPosition=opportunityRover.transform.position;
+    }
+
+    void BeginMission()
+    {
+        if(!ready) return;
+        panel.gameObject.SetActive(false);
+        taskPanels[activeTask].gameObject.SetActive(true);
+    }
+
+    void AdvanceTask(int index)
+    {
+        if(!examined[index] || index!=activeTask || scanning) return;
+        if(index==2) { ContinueToLegacy();return; }
+        activeTask++;
+        taskPanels[activeTask].gameObject.SetActive(true);
+        taskButtons[index].SetActive(false);
+        taskBodies[index].text += "\n\nRecorded. Continue to Sample "+(activeTask+1)+".";
+    }
+
+    public void Investigate() { ScanRock(activeTask); }
 
     void ScanRock(int index)
     {
-        if (!ready || scanning || discovered || Camera.main == null) return;
-        if (Vector3.Distance(Camera.main.transform.position, studyRocks[index].transform.position) > 3f)
-        { RefreshMission("\n\nMove closer to Sample " + (index+1) + "."); return; }
-        if (examined[index]) { RefreshMission("\n\nSample already recorded. Investigate the remaining samples."); return; }
+        if(!ready || scanning || discovered || panel.gameObject.activeSelf || index!=activeTask || examined[index] || Camera.main==null) return;
+        if(Vector3.Distance(opportunityRover.transform.position,studyRocks[index].transform.position)>1.8f)
+        { rockLabels[index].text="SAMPLE "+(index+1)+"\nDrive rover closer";return; }
         StartCoroutine(ReadSample(index));
     }
 
     IEnumerator ReadSample(int index)
     {
-        scanning = true;
-        float duration = 1.2f;
-        for (float t = 0f; t < duration; t += Time.deltaTime)
+        scanning=true;
+        yield return AnimateScience(index);
+        for(float t=0f;t<0.5f;t+=Time.deltaTime)
         {
-            rockLabels[index].text = "SAMPLE " + (index+1) + "\nInvestigating " + Mathf.RoundToInt(t/duration*100f) + "%";
+            rockLabels[index].text="SAMPLE "+(index+1)+"\nAnalyzing "+Mathf.RoundToInt(t/0.5f*100f)+"%";
             yield return null;
         }
-        examined[index] = true;
-        examinedCount++;
-        PlaySampleRecorded();
+        examined[index]=true;examinedCount++;
+        taskPanels[index].Find("Use instrument").gameObject.SetActive(false);
         clues[index].SetActive(true);
-        rockLabels[index].text = "SAMPLE " + (index+1) + "\nRecorded";
-        rockLabels[index].color = new Color(0.65f,1f,0.75f);
-        scanning = false;
-        RefreshMission();
+        PlaySampleRecorded();
+        rockLabels[index].text="SAMPLE "+(index+1)+"\nRecorded";
+        rockLabels[index].color=new Color(0.65f,1f,0.75f);
+        taskBodies[index].text = sampleNarrationText[index];
+        if(index<2) taskButtons[index].SetActive(true);
+        else {answerWater.SetActive(true);answerLife.SetActive(true);}
+        scanning=false;
         if (sampleNarrationClips != null && index < sampleNarrationClips.Length)
             PlayNarration(sampleNarrationClips[index]);
     }
 
     public void SubmitConclusion(bool ancientWater)
     {
-        if (!ready || discovered || examinedCount != 3) return;
-        if (!ancientWater)
+        if(!ready || discovered || examinedCount!=3) return;
+        if(!ancientWater)
         {
-            RefreshMission("\n\n" + incorrectConclusionText);
+            taskBodies[2].text = incorrectConclusionText;
             PlayNarration(incorrectConclusionNarration);
             return;
         }
-        discovered = true;
-        answerWater.SetActive(false);
-        answerLife.SetActive(false);
-        story.text = conclusionNarrationText + "\n\nContinue to its legacy. Desktop: Enter.";
+        discovered=true;answerWater.SetActive(false);answerLife.SetActive(false);
+        taskBodies[2].text = conclusionNarrationText;
+        taskButtons[2].SetActive(true);
         PlayNarration(conclusionNarration);
-        panel.Find("Continue to Legacy").gameObject.SetActive(true);
     }
 
     void ContinueToLegacy()
     {
-        if (!discovered) return;
-        var flow = FindObjectOfType<LoadNextScene>();
-        if (flow != null) flow.Load();
+        if(!discovered) return;
+        var flow=FindObjectOfType<LoadNextScene>();if(flow!=null)flow.Load();
+    }
+
+    void HandleEnter()
+    {
+        if(!ready) return;
+        if(panel.gameObject.activeSelf) BeginMission();
+        else if(discovered) ContinueToLegacy();
+        else if(examined[activeTask]) AdvanceTask(activeTask);
+    }
+
+    void Update()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var keyboard=UnityEngine.InputSystem.Keyboard.current;if(keyboard==null)return;
+        if(keyboard.eKey.wasPressedThisFrame)Investigate();
+        if(keyboard.digit1Key.wasPressedThisFrame)SubmitConclusion(true);
+        if(keyboard.digit2Key.wasPressedThisFrame)SubmitConclusion(false);
+        if(keyboard.enterKey.wasPressedThisFrame)HandleEnter();
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        if(Input.GetKeyDown(KeyCode.E))Investigate();
+        if(Input.GetKeyDown(KeyCode.Alpha1))SubmitConclusion(true);
+        if(Input.GetKeyDown(KeyCode.Alpha2))SubmitConclusion(false);
+        if(Input.GetKeyDown(KeyCode.Return))HandleEnter();
+#endif
     }
 
     void PlaySampleRecorded()
@@ -531,25 +658,7 @@ public class LandingSequenceController : MonoBehaviour
 
     void PlayNarration(AudioClip clip)
     {
-        if (clip == null || narrationAudio == null) return;
         NarrationPlayback.Play(narrationAudio, clip);
-    }
-
-    void Update()
-    {
-#if ENABLE_INPUT_SYSTEM
-        var keyboard = UnityEngine.InputSystem.Keyboard.current;
-        if (keyboard == null) return;
-        if (keyboard.eKey.wasPressedThisFrame) Investigate();
-        if (keyboard.digit1Key.wasPressedThisFrame) SubmitConclusion(true);
-        if (keyboard.digit2Key.wasPressedThisFrame) SubmitConclusion(false);
-        if (keyboard.enterKey.wasPressedThisFrame) ContinueToLegacy();
-#elif ENABLE_LEGACY_INPUT_MANAGER
-        if (Input.GetKeyDown(KeyCode.E)) Investigate();
-        if (Input.GetKeyDown(KeyCode.Alpha1)) SubmitConclusion(true);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) SubmitConclusion(false);
-        if (Input.GetKeyDown(KeyCode.Return)) ContinueToLegacy();
-#endif
     }
 
     void OnDestroy()
@@ -557,4 +666,5 @@ public class LandingSequenceController : MonoBehaviour
         foreach (var asset in assets) if (asset != null) Destroy(asset);
     }
 }
+
 

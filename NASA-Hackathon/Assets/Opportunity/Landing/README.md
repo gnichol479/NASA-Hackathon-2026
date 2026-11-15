@@ -1,28 +1,38 @@
-# Landing demo
+# Landing: rover mission and Legacy environment
 
-Changed `Scripts/LandingSequenceController.cs` and `Animations/Opertunity_LandingSequence.anim`. Existing scene references, terrain assets, packages and shared scripts are preserved.
+## Current behavior
 
-The controller builds the airbag payload, orange/white open parachute and suspension lines at runtime. A terrain-sampled anchor aligns the existing position animation with the surface. Y keys at 0, 2, 2.5, 3, 3.5, 4 seconds are 25, 1, 5, 1, 2.5, 1 metres above the anchor. Airbag bottoms sit one metre below the animated pivot. The obsolete renderer-enable animation track was removed. Canopy detaches before the first bounce; the rover still appears after four seconds.
+- Landing contains copies of Legacy's Mars Terrain, Mars Rocks, Directional Light, and RenderSettings. Asset references, terrain placement, terrain data, rock transforms, lighting and sky settings are shared or copied exactly. The prior Mars_EagleCrater_Terrain and original light are disabled, not deleted. No runtime environment recoloring/scattering is applied.
+- This intentionally uses the final-location Perseverance Valley scenery for continuity; it is not a geographically accurate reconstruction of the Eagle Crater landing site.
+- The player first watches the existing four-second parachute/airbag landing from outside. The detailed rover then plays its imported solar-panel unfold clip. A fade hands control to an observer above and behind Opportunity. The detailed model matches the asset used in Arrival and Legacy, including hidden leftover parts. Its wheels turn during short driving movements, its mast scans gently, and the arm reaches toward each selected rock, holds tool contact, and retracts. The tracked camera is not animated. Existing XR locomotion is retained.
+- A briefing canvas introduces rover mode. Three independent stationary task canvases guide microscopic imaging, mineral analysis, and evidence interpretation. Each has its own concise instructions, instrument action and result. Completed task findings remain at their own stations.
+- Sample 1 reveals enlarged hematite spheres. Sample 2 provides a prewritten jarosite instrument reading. Sample 3 examines inconclusive red dust and asks which conclusion is supported. Wrong answers permit retry; correct completion unlocks Legacy.
 
-After reveal, the shared ScreenFader masks an XR Origin reposition. Runtime objects provide a stationary XR science panel, three XR Simple Interactable samples, enlarged hematite spherules, and a button to the existing Legacy scene. Terrain receives TeleportationArea when absent; warm fog and sky tint provide a simple horizon. Original authored objects return when Play stops.
+## Test in Unity 2022.3.62f1
 
-## Unity verification still required
+1. Stop Play and let compilation finish. Reopen Opportunity-Landing to load the changed scene from disk. If Unity asks about unsaved scene edits, preserve any newer manual work before reloading.
+2. Verify there is one active Mars Terrain and active copied Directional Light; the old Mars_EagleCrater_Terrain is disabled. Compare the sky, rock layout, terrain and light against Opportunity-Legacy.
+3. Press Play. Verify observer view, parachute landing, four-second reveal, solar-array deployment, fade, and third-person rover view. Check for geometry near the eyes. LandingAnimation > Third Person Distance defaults to 3 metres and Third Person Height to 2.5 metres. Deployment Seconds defaults to 4. Headset tracking stays active; camera comfort and framing require device testing.
+4. Look down to see the rover body; move/turn/teleport and verify body alignment, terrain grounding, headset comfort and free look. This is a simplified rover embodiment with existing locomotion, not wheel physics.
+5. Select Begin mission on Rover Briefing Canvas, or press Enter. Approach Sample 1, then use its panel's Focus microscopic imager button, select the rock, or press E with the rover within 1.8 metres. Wait for the reading, then Record spheres / next task (desktop Enter).
+6. Approach Sample 2. Run mineral analysis, then record the mineral and advance. Verify Sample 3 cannot be completed early, repeated selections do not double-count, and each result remains on its separate canvas.
+7. Inspect Sample 3. Choose water (desktop 1); verify life (desktop 2) gives retry feedback. Continue to Legacy with its button or Enter after successful completion.
+8. Check each canvas in the headset for readability, placement and ray input, confirm the sample-recorded chime, and verify no Console errors. Test Launch -> Landing -> Legacy.
 
-1. Open `Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity` in Unity 2022.3.62f1. Finish any active Play session before scripts recompile.
-2. Select `LandingAnimation`. Verify LandingSequenceController fields: Lander = `Oppertunity_Lander`, Opportunity Rover = `Opportunity-NASA`, Landing Duration = `4`. No reassignment should be necessary.
-3. Press Play. Check outside-rover starting view, parachute descent, canopy separation, terrain contact, two bounces, and rover reveal at four seconds.
-4. Check fade teleport, standing height, free movement/turning and terrain ray teleportation using the XR Device Simulator and headset.
-5. Investigate Sample 1, 2 and 3 in any order. Select each with an XR controller ray within 3 metres, or approach and press E. Confirm each 1.2-second reading records only once, labels change to Recorded, and progress reaches 3/3. Sample 1 reveals enlarged hematite spheres; Sample 2 reports jarosite; Sample 3 explains that red dust alone is inconclusive.
-6. After 3/3 samples, choose a conclusion using XR UI, or desktop 1 (ancient water) / 2 (life found). Verify the incorrect answer gives retry feedback and the correct answer unlocks Continue to Opportunity's legacy. Select that button or press Enter to load Opportunity-Legacy. Verify no completion is possible before all samples, no double-counting on repeated selection, panel readability and no Console errors.
+## Verification
 
-## Validation and limits
+Runtime C# compilation passed using Unity's installed Roslyn compiler and project assembly references, including the new teammate XR player setup source. Copied environment block IDs were checked for uniqueness. This does not verify scene rendering, Unity import, Play-mode interaction or headset comfort. Those checks remain necessary in the open Editor.
 
-Runtime C# compiled successfully with Unity's installed Roslyn compiler and this project's existing assembly references. Separate Unity batch validation could not open the project because an existing Editor holds its lock. Play mode, visual layout, terrain slopes and headset comfort remain unverified. No packages or external assets were added. The four-second landing is a compressed illustration; the three-sample investigation uses prewritten educational instrument readings rather than real measurements. Hematite dots are enlarged and evidence of water is distinguished from proof of life.
+## Science and credits
 
-Science checked against NASA:
-- https://science.nasa.gov/mission/mer-opportunity/
+This is a simplified educational activity with scripted readings, not simulated physical instruments. Evidence of water is distinguished from proof of life.
+
+- https://www.jpl.nasa.gov/news/opportunity-rover-finds-strong-evidence-meridiani-planum-was-wet/
 - https://science.nasa.gov/resource/martian-blueberries-2/
-- https://science.nasa.gov/resource/discovery-served-up-in-a-bowl/
+- https://science.nasa.gov/mission/mer-opportunity/
 
-Additional science source for jarosite and water evidence: https://www.jpl.nasa.gov/news/opportunity-rover-finds-strong-evidence-meridiani-planum-was-wet/
+Legacy data credits also apply to Landing: HiRISE terrain NASA/JPL/University of Arizona/USGS; PIA22909 panorama NASA/JPL-Caltech/Cornell/ASU. See the repository README for source links.
+
+## Rover animation limits
+The imported panel unfold is reused. Wheel spin, mast sweep, and arm contact/retraction are procedural illustrative motions, not mechanically constrained robotics. The arm solver uses existing joints without stretching them. A small illustrative abrasion-tool head is added. Driving providers pause during instrument actions and resume afterward. Joint limits, reach at each sample, wheel axes, near-camera geometry and terrain camera framing still need Play-mode verification. No new packages were added.
 
