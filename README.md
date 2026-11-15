@@ -92,6 +92,23 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - Rocket: Delta II 7925H ("Heavy"), nine strap-on solid boosters, six lit on the pad and three in flight
 - The flight in the scene is sped up. The real timeline is much longer
 
+## InSight launch scene (Dominic)
+
+`Assets/InSight/Launch/Scenes/InSight-Launch.unity`. Same idea as the Opportunity launch, built with the same scripts, for the InSight lander.
+
+- **Rocket:** an Atlas V 401 at real size (about 58 m tall): bronze booster, white Centaur upper stage and nose fairing, no strap-on boosters
+- **Setting:** Vandenberg, California, before dawn. Fog, rolling hills, the mobile service tower rolled back from the pad, a gibbous moon
+- **Lander on show:** the InSight lander model stands on a lit display beside the viewing deck with a sign, because in the real launch it is hidden inside the nose fairing
+- **Model:** `Assets/InSight/Models/InSight-Lander.glb` (imported at real size, about 6 m across)
+- **Rebuild:** **NasaHack > InSight > Build Atlas V Launch**. Code is in `Assets/Shared/Editor/DeltaIIBuilder.InSight.cs`
+- **Not in the chain yet:** the scene is not in Build Settings, and its Scene Flow points to `TitleScreen`. Open the scene and press Play to try it
+- `DeltaIILaunch` now has the sign messages and liftoff acceleration as Inspector fields, so both launches share it. The Opportunity scene keeps its old values
+
+**InSight facts used in the scene.** Check these against a NASA page before showing them:
+- Launched May 5, 2018 at 4:05 a.m. PDT from Vandenberg Air Force Base, Space Launch Complex 3E, on an Atlas V 401
+- First launch to another planet from the U.S. West Coast. Thick fog hid the rocket from most people watching
+- Landed at Elysium Planitia on November 26, 2018. It listened for marsquakes and measured heat from inside Mars
+
 ## Unity tip
 
 **Edit > Preferences > General > Script Changes While Playing → Recompile After Finished Playing.** Otherwise pulling or editing code while in Play mode breaks the running scene with a wall of errors.

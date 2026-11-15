@@ -21,14 +21,20 @@ namespace NasaHack.EditorTools
     [InitializeOnLoad]
     public static partial class DeltaIIBuilder
     {
-        const string Root = "Assets/Opportunity/Launch";
-        const string ScenePath = Root + "/Scenes/Opportunity-Launch.unity";
-        const string MeshPath = Root + "/Models/DeltaII-Meshes.asset";
-        const string PrefabPath = Root + "/Prefabs/Delta II 7925H.prefab";
-        const string MatDir = Root + "/Materials";
-        const string ParticleTexPath = Root + "/Textures/SoftParticle.png";
+        // Which launch is being built. Every path below follows it, so each mission keeps its own
+        // scene, meshes, materials and textures. InSight's parts are in DeltaIIBuilder.InSight.cs.
+        enum Mission { Opportunity, InSight }
+        static Mission mission = Mission.Opportunity;
+        static bool InSight => mission == Mission.InSight;
 
-        static readonly Vector3 PadPosition = new Vector3(0f, 0f, 90f);
+        static string Root => InSight ? "Assets/InSight/Launch" : "Assets/Opportunity/Launch";
+        static string ScenePath => Root + (InSight ? "/Scenes/InSight-Launch.unity" : "/Scenes/Opportunity-Launch.unity");
+        static string MeshPath => Root + (InSight ? "/Models/AtlasV-Meshes.asset" : "/Models/DeltaII-Meshes.asset");
+        static string PrefabPath => Root + (InSight ? "/Prefabs/Atlas V 401.prefab" : "/Prefabs/Delta II 7925H.prefab");
+        static string MatDir => Root + "/Materials";
+        static string ParticleTexPath => Root + "/Textures/SoftParticle.png";
+
+        static Vector3 PadPosition => InSight ? new Vector3(0f, 0f, 110f) : new Vector3(0f, 0f, 90f);
         const float PadTop = 0.8f, MountHeight = 3.2f;
 
         // The scene is saved in git, so nothing is built automatically. Rebuild from the menu,
@@ -39,38 +45,48 @@ namespace NasaHack.EditorTools
         }
 
         [MenuItem("NasaHack/Opportunity/Build Delta II Launch")]
-        public static void Build()
+        public static void Build() => Build(Mission.Opportunity);
+
+        [MenuItem("NasaHack/InSight/Build Atlas V Launch")]
+        public static void BuildInSight() => Build(Mission.InSight);
+
+        static void Build(Mission which)
         {
+            mission = which;
             try
             {
+                foreach (var d in new[] { "Scenes", "Models", "Materials", "Prefabs", "Textures" }) EnsureFolder($"{Root}/{d}");
+
                 var active = EditorSceneManager.GetActiveScene();
                 if (active.path != ScenePath)
                 {
                     if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-                    EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+                    if (File.Exists(ScenePath)) EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+                    else CreateLaunchScene();
                 }
                 var scene = EditorSceneManager.GetActiveScene();
 
-                foreach (var d in new[] { "Models", "Materials", "Prefabs", "Textures" }) EnsureFolder($"{Root}/{d}");
                 var mats = new Mats();
-                var meshes = BuildMeshes();
-                var rocketPrefab = BuildRocketPrefab(meshes, mats);
+                var meshes = InSight ? BuildAtlasMeshes() : BuildMeshes();
+                var rocketPrefab = InSight ? BuildAtlasPrefab(meshes, mats) : BuildRocketPrefab(meshes, mats);
 
-                foreach (var name in new[] { "Launch Complex", "Launch Console", "Countdown Board" })
+                foreach (var name in new[] { "Launch Complex", "Launch Console", "Countdown Board", "Lander Display" })
                     foreach (var g in scene.GetRootGameObjects().Where(g => g.name == name)) Object.DestroyImmediate(g);
 
                 // ---- Cape Canaveral surroundings, sky and post-processing (DeltaIIBuilder.Environment.cs)
-                BuildEnvironment(scene, mats, meshes);
+                if (InSight) BuildVandenbergEnvironment(scene, mats, meshes);
+                else BuildEnvironment(scene, mats, meshes);
 
                 // ---- Launch complex
                 var complex = new GameObject("Launch Complex");
                 complex.transform.position = PadPosition;
                 BuildPad(complex.transform, mats);
-                BuildTower(complex.transform, mats);
+                if (InSight) BuildAtlasTower(complex.transform, mats);
+                else BuildTower(complex.transform, mats);
 
                 var rocket = (GameObject)PrefabUtility.InstantiatePrefab(rocketPrefab, scene);
                 rocket.transform.SetParent(complex.transform, false);
-                rocket.transform.localPosition = new Vector3(0f, PadTop + MountHeight + 1.25f, 0f);
+                rocket.transform.localPosition = new Vector3(0f, PadTop + MountHeight + (InSight ? 1.9f : 1.25f), 0f);
 
                 var smoke = MakeSmoke(complex.transform, mats);
 
@@ -94,18 +110,48 @@ namespace NasaHack.EditorTools
                 launch.clockText = clock;
                 launch.statusText = status;
                 BuildConsole(launch, mats);
+                if (InSight)
+                {
+                    ConfigureInSightLaunch(launch);
+                    BuildLanderDisplay(scene, mats);
+                }
 
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
                 AssetDatabase.SaveAssets();
                 Selection.activeGameObject = complex;
-                Debug.Log("[Delta II] Built the Delta II 7925H launch in " + ScenePath +
+                Debug.Log("[Delta II] Built the " + (InSight ? "Atlas V 401 (InSight)" : "Delta II 7925H") + " launch in " + ScenePath +
                           ". Press Play, then press the red LAUNCH button (or L on the keyboard).");
             }
             catch (System.Exception e)
             {
                 Debug.LogError("[Delta II] Build failed: " + e);
             }
+        }
+
+        // A new launch scene, set up like the team's other scenes: light, shared XR Rig,
+        // teleport ground and a Scene Flow object.
+        static void CreateLaunchScene()
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            var light = new GameObject("Directional Light").AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+            var rig = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Shared/Prefabs/XR Rig.prefab");
+            if (rig == null) throw new System.Exception("Assets/Shared/Prefabs/XR Rig.prefab not found");
+            PrefabUtility.InstantiatePrefab(rig, scene);
+
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "Ground (teleport)";
+            floor.transform.localScale = new Vector3(10f, 1f, 10f);
+            floor.AddComponent<TeleportationArea>();
+
+            var flow = new GameObject("Scene Flow").AddComponent<LoadNextScene>();
+            flow.nextScene = "TitleScreen";
+
+            EditorSceneManager.SaveScene(scene, ScenePath);
         }
 
         // =====================================================================================

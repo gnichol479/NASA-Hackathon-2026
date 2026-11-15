@@ -15,9 +15,9 @@ namespace NasaHack.EditorTools
     public static partial class DeltaIIBuilder
     {
         const string EnvRoot = "Environment";
-        const string NoisePath = Root + "/Textures/Noise.png";
-        const string WaterNormalPath = Root + "/Textures/WaterNormal.png";
-        const string PostProfilePath = Root + "/Settings/Launch Post Processing.asset";
+        static string NoisePath => Root + "/Textures/Noise.png";
+        static string WaterNormalPath => Root + "/Textures/WaterNormal.png";
+        static string PostProfilePath => Root + "/Settings/Launch Post Processing.asset";
 
         const float LandEndZ = 220f, BeachEndZ = 275f;
 
