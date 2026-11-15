@@ -36,6 +36,26 @@ namespace NasaHack.EditorTools
             string request = File.ReadAllText(RequestFile).Trim();
             try
             {
+                if (request.StartsWith("menu "))
+                {
+                    // Run an editor menu item, e.g. a verification tool.
+                    File.Delete(RequestFile);
+                    string item = request.Substring(5).Trim();
+                    File.WriteAllText(DoneFile, (EditorApplication.ExecuteMenuItem(item) ? "OK ran " : "NOT FOUND ") + item);
+                    return;
+                }
+                if (request.StartsWith("open "))
+                {
+                    // Open a scene (e.g. so its own editor tooling can react to it).
+                    File.Delete(RequestFile);
+                    string scenePath = request.Substring(5).Trim();
+                    AssetDatabase.Refresh();
+                    if (EditorUtility.scriptCompilationFailed) { File.WriteAllText(DoneFile, "COMPILE FAILED"); return; }
+                    if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) { File.WriteAllText(DoneFile, "CANCELLED"); return; }
+                    EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+                    File.WriteAllText(DoneFile, "OK opened " + scenePath);
+                    return;
+                }
                 bool insight = request.EndsWith("insight"), title = request.EndsWith("title");
                 if (request.StartsWith("build") && !request.StartsWith("build2"))
                 {
