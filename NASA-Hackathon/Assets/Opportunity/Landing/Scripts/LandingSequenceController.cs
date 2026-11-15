@@ -160,11 +160,16 @@ public class LandingSequenceController : MonoBehaviour
     Vector3 Surface(Vector3 point)
     {
         var ray = new Ray(point + Vector3.up * 10000f, Vector3.down);
+        bool found = false;
+        Vector3 surface = point;
         foreach (var terrain in Terrain.activeTerrains)
         {
             var collider = terrain.GetComponent<TerrainCollider>();
-            if (collider != null && collider.Raycast(ray, out var hit, 20000f)) return hit.point;
+            if (collider != null && collider.Raycast(ray, out var hit, 20000f)
+                && (!found || hit.point.y > surface.y))
+            { surface = hit.point; found = true; }
         }
+        if (found) return surface;
         var ground = GameObject.Find("Ground (teleport)");
         var floor = ground != null ? ground.GetComponent<Collider>() : null;
         if (floor != null && floor.Raycast(ray, out var floorHit, 20000f)) return floorHit.point;

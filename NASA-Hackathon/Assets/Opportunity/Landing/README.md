@@ -36,3 +36,13 @@ Legacy data credits also apply to Landing: HiRISE terrain NASA/JPL/University of
 ## Rover animation limits
 The imported panel unfold is reused. Wheel spin, mast sweep, and arm contact/retraction are procedural illustrative motions, not mechanically constrained robotics. The arm solver uses existing joints without stretching them. A small illustrative abrasion-tool head is added. Driving providers pause during instrument actions and resume afterward. Joint limits, reach at each sample, wheel axes, near-camera geometry and terrain camera framing still need Play-mode verification. No new packages were added.
 
+
+## Automated Play-mode verification (2026-11-15)
+
+The Mars Landscape 3D pack is imported locally. Unity's environment builder completed for Landing, including Mars Far Terrain; the downloaded pack remains excluded from git under the team's licensing workflow.
+
+NasaHack > Landing > Verify playable mission runs the real scene, checks deployment/handoff, arm joints and six wheels, three separate canvases, all three instrument coroutine completions, duplicate prevention, wrong-answer retry, and successful transition to Opportunity-Legacy. Latest run: PASS. Report: landing-playmode-verification.txt in the repository root.
+
+The check moves the XR origin programmatically and invokes the same task actions used by the controls. It does not validate physical controller input, reach/contact appearance, wheel axes, visual panel readability or headset comfort. An unrelated existing Failed to load Editor window message appeared during Game view maximization; this was not a mission-script failure.
+
+Surface grounding now chooses the highest TerrainCollider intersection when the near and far terrains overlap, keeping the rover and task objects on the visible surface.
