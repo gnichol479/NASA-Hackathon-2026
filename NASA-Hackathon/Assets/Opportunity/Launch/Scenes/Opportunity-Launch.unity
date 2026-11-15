@@ -43527,7 +43527,7 @@ MonoBehaviour:
     p.m. Eastern Daylight Time. Its mission was to investigate evidence of past water
     on Mars. Press the red launch button when you are ready. This is a shortened
     educational reenactment.
-  countdownNarrationText: Ten. Nine. Eight. Seven.
+  countdownNarrationText:
   internalPowerNarrationText: Launch vehicle on internal power.
   ignitionNarrationText: Main engine start!
   liftoffNarrationText: 'LIFTOFF!
@@ -43551,7 +43551,7 @@ MonoBehaviour:
     (Real launch timeline
     sped up.)'
   briefingNarration: {fileID: 8300000, guid: 498af2e274feadd4eb55a1187cbdd4a3, type: 3}
-  countdownNarration: {fileID: 8300000, guid: 22979ab7049486842a96db3d3020b1cc, type: 3}
+  countdownNarration: {fileID: 0}
   internalPowerNarration: {fileID: 8300000, guid: 86584cbafd714874bbb4f8b3b9a37e4b, type: 3}
   ignitionNarration: {fileID: 8300000, guid: eb6d5de248f5d974abcd9d987490947b, type: 3}
   liftoffNarration: {fileID: 8300000, guid: a7df9e87f706570469c65866e9ccf85a, type: 3}

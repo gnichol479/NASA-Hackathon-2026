@@ -271,8 +271,6 @@ namespace NasaHack.EditorTools
                     EditorSceneManager.MarkSceneDirty(scene);
                     AddCue(launch, "briefingNarration", launch.briefingNarrationText, sceneName,
                         GetTransformPath(launch.transform) + "_Briefing");
-                    AddCue(launch, "countdownNarration", launch.countdownNarrationText, sceneName,
-                        GetTransformPath(launch.transform) + "_Countdown");
                     AddCue(launch, "internalPowerNarration", launch.internalPowerNarrationText, sceneName,
                         GetTransformPath(launch.transform) + "_Internal_Power");
                     AddCue(launch, "ignitionNarration", launch.ignitionNarrationText, sceneName,

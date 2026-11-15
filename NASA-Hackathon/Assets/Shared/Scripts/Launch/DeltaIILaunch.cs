@@ -107,8 +107,8 @@ namespace NasaHack
                     briefingNarrationText = idleMessage;
             }
 
-            if (string.IsNullOrWhiteSpace(countdownNarrationText))
-                countdownNarrationText = "Ten. Nine. Eight. Seven.";
+            // The visual launch clock still counts down, but the numbers are intentionally
+            // not spoken. A fast compressed voice clip was difficult to understand.
             if (string.IsNullOrWhiteSpace(internalPowerNarrationText))
                 internalPowerNarrationText = "Launch vehicle on internal power.";
             if (string.IsNullOrWhiteSpace(ignitionNarrationText)) ignitionNarrationText = ignitionMessage;
@@ -144,7 +144,6 @@ namespace NasaHack
                 if (t == countdownSeconds)
                 {
                     SetStatus("Countdown started. All systems go.");
-                    PlayNarration(countdownNarration);
                 }
                 if (t == 6)
                 {

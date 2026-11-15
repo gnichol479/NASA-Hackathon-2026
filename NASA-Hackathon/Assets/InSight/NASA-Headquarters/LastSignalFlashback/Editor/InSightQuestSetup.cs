@@ -27,7 +27,11 @@ namespace LastSignal.InSightFlashback.EditorTools
     public static class InSightQuestSetup
     {
         public const string ScenePath = "Assets/InSight/NASA-Headquarters/LastSignalFlashback/Scenes/InSight-Flashback.unity";
-        private const string LaunchScenePath = "Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity";
+        private const string LaunchScenePath = "Assets/InSight/Launch/Scenes/InSight-Launch.unity";
+        private const string TitleScenePath = "Assets/Shared/Scenes/TitleScreen-Night.unity";
+        private const string LandingScenePath = "Assets/InSight/Mission/Scenes/InSight-Landing.unity";
+        private const string ArrivalScenePath = "Assets/InSight/Mission/Scenes/InSight-Arrival.unity";
+        private const string LegacyScenePath = "Assets/InSight/Mission/Scenes/InSight-Legacy.unity";
         private const string Menu = "Last Signal/InSight Flashback/VR/";
         private const string PendingBuild = "LastSignal.QuestBuildPending";
         private const string SimulatorSettings = "Assets/XRI/Settings/Resources/XRDeviceSimulatorSettings.asset";
@@ -85,10 +89,10 @@ namespace LastSignal.InSightFlashback.EditorTools
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.Vulkan });
             PlayerSettings.colorSpace = ColorSpace.Linear;
             PlayerSettings.runInBackground = true;
-            // Dedicated id for the isolated flashback APK; preserve any existing team's id.
+            // Keep a dedicated InSight identifier; preserve any other explicitly configured id.
             string identifier = PlayerSettings.GetApplicationIdentifier(BuildTargetGroup.Android);
-            if (string.IsNullOrEmpty(identifier) || identifier.Contains("DefaultCompany"))
-                PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.lastsignal.opportunity.flashback");
+            if (string.IsNullOrEmpty(identifier) || identifier.Contains("DefaultCompany") || identifier == "com.lastsignal.opportunity.flashback")
+                PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.lastsignal.insight.demo");
             // Both input backends stay enabled because teammates still use legacy Input APIs.
             Type inputPreferences = typeof(UnityEngine.InputSystem.InputDevice).Assembly.GetType(
                 "UnityEngine.InputSystem.Editor.InputEditorUserSettings");
@@ -173,7 +177,7 @@ namespace LastSignal.InSightFlashback.EditorTools
                 Debug.Log("[InSight XR] " + player.DescribeStatus(), player);
         }
 
-        [MenuItem(Menu + "Build Quest 2 Flashback APK")]
+        [MenuItem(Menu + "Build Quest 2 InSight Demo APK")]
         public static void BuildQuest()
         {
             Configure();
@@ -202,11 +206,12 @@ namespace LastSignal.InSightFlashback.EditorTools
 
         private static void BuildAndroid()
         {
-            string output = "Builds/Quest2/LastSignal-Flashback.apk";
+            string output = "Builds/Quest2/LastSignal-InSight.apk";
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = new[] { ScenePath, LaunchScenePath }, locationPathName = output, target = BuildTarget.Android,
+                scenes = new[] { TitleScenePath, ScenePath, LaunchScenePath, LandingScenePath, ArrivalScenePath, LegacyScenePath },
+                locationPathName = output, target = BuildTarget.Android,
                 options = BuildOptions.Development
             });
             Require(report.summary.result == BuildResult.Succeeded, "Quest build failed: " + report.summary.result);

@@ -19,6 +19,7 @@ namespace LastSignal.InSightFlashback
         [SerializeField] private Rigidbody body;
         [SerializeField] private Collider partCollider;
         [SerializeField] private XRGrabInteractable grabInteractable;
+        [SerializeField, Min(0f)] private float surfaceSnapTolerance = 0.18f;
 
         private InSightFlashbackSceneController owner;
         private Transform snapTarget;
@@ -116,11 +117,26 @@ namespace LastSignal.InSightFlashback
             if (!IsInteractable || snapTarget == null)
                 return false;
 
-            if (Vector3.Distance(transform.position, snapTarget.position) > snapRadius)
+            if (!IsInsideSnapZone())
                 return false;
 
             SnapToTarget();
             return true;
+        }
+
+        private bool IsInsideSnapZone()
+        {
+            if (Vector3.Distance(transform.position, snapTarget.position) <= snapRadius)
+                return true;
+
+            // VR placement is imprecise, and the extracted arm's pivot can be offset from the
+            // visible grasp point. Accept a part whose collider reaches the socket even if its
+            // root is outside the small center-to-center radius.
+            if (partCollider == null || !partCollider.enabled)
+                return false;
+
+            Vector3 nearestPoint = partCollider.ClosestPoint(snapTarget.position);
+            return (nearestPoint - snapTarget.position).sqrMagnitude <= surfaceSnapTolerance * surfaceSnapTolerance;
         }
 
         /// <summary>Deterministic editor verification hook; uses the exact production snap path.</summary>

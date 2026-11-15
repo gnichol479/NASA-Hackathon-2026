@@ -26,7 +26,7 @@ namespace LastSignal.InSightFlashback.EditorTools
         {
             new Cue("Facility introduction", "introNarrationText", "introNarration", "01_Introduction"),
             new Cue("Solar arrays", "solarPanelNarrationText", "solarPanelNarration", "02_Solar_Arrays"),
-            new Cue("Camera mast", "cameraMastNarrationText", "cameraMastNarration", "03_Camera_Mast"),
+            new Cue("SEIS seismometer", "cameraMastNarrationText", "cameraMastNarration", "03_SEIS"),
             new Cue("Instrument arm", "instrumentArmNarrationText", "instrumentArmNarration", "04_Instrument_Arm"),
             new Cue("Systems check", "systemsCheckNarrationText", "systemsCheckNarration", "05_Systems_Check")
         };
@@ -284,7 +284,9 @@ namespace LastSignal.InSightFlashback.EditorTools
                     if (importer != null)
                     {
                         importer.forceToMono = true;
+                        importer.loadInBackground = false;
                         AudioImporterSampleSettings settings = importer.defaultSampleSettings;
+                        settings.preloadAudioData = true;
                         settings.loadType = AudioClipLoadType.DecompressOnLoad;
                         settings.compressionFormat = AudioCompressionFormat.Vorbis;
                         settings.quality = 1f;

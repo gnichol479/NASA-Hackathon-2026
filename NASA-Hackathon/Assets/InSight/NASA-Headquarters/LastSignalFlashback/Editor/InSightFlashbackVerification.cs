@@ -126,10 +126,12 @@ namespace LastSignal.InSightFlashback.EditorTools
                         "Controller pickup should work for " + part.Kind + ".");
                     Require(part.transform.parent == partHoldAnchor.transform,
                         "Picking up " + part.Kind + " should attach it to the controller hold anchor.");
-                    part.transform.SetPositionAndRotation(
-                        part.SnapTarget.position + Vector3.up * 0.16f, part.SnapTarget.rotation);
+                    Vector3 releasePosition = part.SnapTarget.position + Vector3.up * 0.16f;
+                    if (part.Kind == InSightPartKind.RoboticArm)
+                        releasePosition += Vector3.right * 0.9f; // Regression: arm pivot/grip offset during real VR placement.
+                    part.transform.SetPositionAndRotation(releasePosition, part.SnapTarget.rotation);
                     Require(part.ReleaseFromGrab(),
-                        "Releasing " + part.Kind + " inside the snap radius should snap it.");
+                        "Releasing " + part.Kind + " at a normal VR placement distance should snap it.");
                     UnityEngine.Object.DestroyImmediate(partHoldAnchor);
                     Require(part.IsSnapped, "The snapped " + part.Kind + " should report its snapped state.");
                     Require(part.transform.parent == part.SnapTarget,

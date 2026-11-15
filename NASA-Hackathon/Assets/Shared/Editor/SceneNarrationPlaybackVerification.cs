@@ -203,7 +203,7 @@ namespace NasaHack.EditorTools
                 "RocketRumble has multiple AudioSources.");
             string initialScene = SceneManager.GetActiveScene().name;
             string nextScene = launch.sceneFlow.nextScene;
-            var expected = new[] { launch.countdownNarration, launch.internalPowerNarration, launch.ignitionNarration,
+            var expected = new[] { launch.internalPowerNarration, launch.ignitionNarration,
                 launch.liftoffNarration, launch.pitchNarration, launch.stagingNarration, launch.cruiseNarration };
             var seen = new HashSet<AudioClip>();
             var advanced = new HashSet<AudioClip>();
@@ -225,9 +225,9 @@ namespace NasaHack.EditorTools
                 yield return null;
             }
             Require(SceneManager.GetActiveScene().name == nextScene, "Launch loaded the wrong scene.");
-            Require(expected.All(c => seen.Contains(c) && advanced.Contains(c)), "One or more launch milestones did not play.");
+            Require(expected.All(c => c != null && seen.Contains(c) && advanced.Contains(c)), "One or more launch milestones did not play.");
             Require(cruiseProgress >= cruiseLength - 0.35f, "Launch handoff cut off the final narration.");
-            results.Add($"PASS {initialScene}: all 7 flight cues played; final voice reached {cruiseProgress:F2}/{cruiseLength:F2}s before {nextScene}.");
+            results.Add($"PASS {initialScene}: all 6 flight cues played; final voice reached {cruiseProgress:F2}/{cruiseLength:F2}s before {nextScene}.");
         }
 
         static IEnumerator CheckPlayback(AudioClip clip, string label, double timeout = 3)

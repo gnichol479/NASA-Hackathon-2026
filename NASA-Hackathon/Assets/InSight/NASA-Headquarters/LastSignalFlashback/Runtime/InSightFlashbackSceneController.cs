@@ -243,7 +243,9 @@ namespace LastSignal.InSightFlashback
                     spawnRotation = finalModelInstance.transform.rotation;
                 }
                 InSightAssemblyPart part = CreatePart(kind + " - temporary grabbable component", kind, target,
-                    spawnPosition, colliderSize, i == 0 ? .5f : .42f, spawnRotation);
+                    spawnPosition, colliderSize,
+                    kind == InSightPartKind.RoboticArm ? 1.35f : kind == InSightPartKind.Seismometer ? .8f : .7f,
+                    spawnRotation);
                 if (useModelParts)
                 {
                     InSightFacilityLayout.BuildExtractedModelPart(finalModelInstance.transform,
@@ -420,16 +422,37 @@ namespace LastSignal.InSightFlashback
 
         private void BuildAudioSources()
         {
+            EnsureAudioListener();
             narrationSource = gameObject.AddComponent<AudioSource>();
             narrationSource.playOnAwake = false;
             narrationSource.spatialBlend = 0f;
             narrationSource.volume = 1f;
+            narrationSource.ignoreListenerPause = true;
             feedbackSource = gameObject.AddComponent<AudioSource>();
             feedbackSource.playOnAwake = false;
             feedbackSource.spatialBlend = 0f;
             feedbackSource.volume = 0.55f;
             if (snapFeedbackClip == null)
                 generatedSnapTone = CreateSnapTone();
+
+            AudioClip[] narrationClips =
+            {
+                introNarration, solarPanelNarration, cameraMastNarration,
+                instrumentArmNarration, systemsCheckNarration
+            };
+            foreach (AudioClip clip in narrationClips)
+                if (clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+                    clip.LoadAudioData();
+        }
+
+        private void EnsureAudioListener()
+        {
+            if (playerCamera == null) return;
+            AudioListener[] listeners = FindObjectsOfType<AudioListener>();
+            for (int i = 0; i < listeners.Length; i++)
+                if (listeners[i] != null && listeners[i].enabled && listeners[i].gameObject.activeInHierarchy)
+                    return;
+            playerCamera.gameObject.AddComponent<AudioListener>();
         }
 
         private void SetInitialState()
@@ -450,8 +473,11 @@ namespace LastSignal.InSightFlashback
         {
             ScreenFader fader = ScreenFader.Instance;
             if (fader != null) fader.SetAlpha(1f);
-            while (playerSetup != null && !playerSetup.TrackingReady)
+            float trackingWaitEnds = Time.realtimeSinceStartup + 8f;
+            while (playerSetup != null && !playerSetup.TrackingReady && Time.realtimeSinceStartup < trackingWaitEnds)
                 yield return null;
+            if (playerSetup != null && !playerSetup.TrackingReady)
+                Debug.LogWarning("[InSight Flashback] Head tracking did not become ready; starting the briefing audio anyway.", this);
             if (fader != null)
             {
                 fader.SetAlpha(1f);
@@ -668,6 +694,12 @@ namespace LastSignal.InSightFlashback
                 narrationSource.Stop();
                 if (clip != null)
                 {
+                    if (clip.loadState == AudioDataLoadState.Unloaded)
+                        clip.LoadAudioData();
+                    narrationSource.enabled = true;
+                    narrationSource.volume = 1f;
+                    narrationSource.mute = false;
+                    narrationSource.spatialBlend = 0f;
                     narrationSource.clip = clip;
                     narrationSource.Play();
                 }
