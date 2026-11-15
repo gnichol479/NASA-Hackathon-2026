@@ -25,12 +25,23 @@ namespace NasaHack.EditorTools
         const string RockAlbedo = MarsDir + "/Rock_Albedo.png";
         const string TerrainDataPath = MarsDir + "/PerseveranceValley.asset";
         const string RockMeshPath = MarsDir + "/Rocks.asset";
+        // Far backdrop: MOLA MEGDR 128 px/deg (NASA/GSFC), ~90 km around the rover, under the HiRISE tile.
+        const string FarRaw = MarsDir + "/EndeavourFar_513.raw";
+        const string FarMeta = MarsDir + "/EndeavourFar.json";
+        const string FarTerrainDataPath = MarsDir + "/EndeavourFar.asset";
+        const int FarResolution = 513;
+
+        // Free Asset Store pack "Mars Landscape 3D" (Evgenii Nikolskii). Used when present, otherwise the generated textures.
+        const string PackDir = "Assets/Mars Landscape 3D";
+        const string PackTex = PackDir + "/Resources/Textures/";
+        static bool HasPack => AssetDatabase.IsValidFolder(PackDir);
 
         static readonly string[] Scenes =
         {
             "Assets/Shared/Scenes/TitleScreen.unity",
             "Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity",
             "Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity",
+            "Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity",
         };
 
         // Must match OpportunitySceneBuilder.RoverPosition: the rover pixel of the DTM lands here.
@@ -50,8 +61,29 @@ namespace NasaHack.EditorTools
             public float skyRotation; // degrees, turns the panorama so its view down the valley faces east
         }
 
-        [MenuItem("NasaHack/Build Mars Environment (Title, Arrival, Legacy)")]
-        public static void Build()
+        [System.Serializable]
+        class FarMetaData
+        {
+            public float metersPerPixel;
+            public float minElevation;
+            public float maxElevation;
+            public float roverElevation;
+            public float roverPixelX;
+            public float roverPixelZ;
+        }
+
+        [MenuItem("NasaHack/Mars Environment/NASA terrain + panorama sky + rocks")]
+        public static void BuildFull() => Build(usePanorama: true, scatterRocks: true);
+
+        // Only the elevation data (with sand/rock shading): procedural sky, no scattered rocks.
+        [MenuItem("NasaHack/Mars Environment/NASA terrain only")]
+        public static void BuildTerrainOnly() => Build(usePanorama: false, scatterRocks: false);
+
+        // NASA terrain, dusk sky, textures and rocks from the free "Mars Landscape 3D" pack (if imported).
+        [MenuItem("NasaHack/Mars Environment/NASA terrain + Mars Landscape 3D textures and rocks")]
+        public static void BuildTextured() => Build(usePanorama: false, scatterRocks: true);
+
+        public static void Build(bool usePanorama, bool scatterRocks)
         {
             if (EditorApplication.isPlaying)
             {
@@ -69,9 +101,16 @@ namespace NasaHack.EditorTools
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             ConfigureTextures();
+            ExtendCameraRange();
             var meta = JsonUtility.FromJson<Meta>(File.ReadAllText(HeightMeta));
             var terrainData = BuildTerrainData(meta);
-            var sky = BuildSkyMaterial(meta);
+            var farData = File.Exists(FarRaw) && File.Exists(FarMeta) ? BuildFarTerrainData() : null;
+            // Terrain-only mode: Dominic's dusk sky (stars, blue sunset glow, Earth) if it exists, same look as the title.
+            var dusk = AssetDatabase.LoadAssetAtPath<Material>("Assets/Shared/Title/Mars Dusk Sky.mat");
+            var sky = usePanorama
+                ? BuildSkyMaterial(meta)
+                : (dusk != null ? dusk : AssetDatabase.LoadAssetAtPath<Material>("Assets/Shared/Settings/Mars Sky.mat"));
+            bool duskLighting = !usePanorama && dusk != null;
             var rockMeshes = BuildRockMeshes();
             var rockMat = BuildRockMaterial();
 
@@ -79,7 +118,8 @@ namespace NasaHack.EditorTools
             {
                 if (!File.Exists(path)) continue;
                 var scene = EditorSceneManager.OpenScene(path);
-                BuildScene(meta, terrainData, sky, rockMeshes, rockMat, path.Contains("TitleScreen"));
+                BuildScene(meta, terrainData, sky, rockMeshes, rockMat, path.Contains("TitleScreen"), scatterRocks, duskLighting);
+                if (farData != null) BuildFarTerrain(farData);
                 EditorSceneManager.SaveScene(scene);
                 Debug.Log("[NasaHack] Mars environment built in " + path);
             }
@@ -88,6 +128,32 @@ namespace NasaHack.EditorTools
         }
 
         // ---------- assets ----------
+
+        // Unity cameras stop drawing at 1 km by default; the terrain reaches much further.
+        static void ExtendCameraRange()
+        {
+            const string rigPath = "Assets/Shared/Prefabs/XR Rig.prefab";
+            var rig = PrefabUtility.LoadPrefabContents(rigPath);
+            try
+            {
+                bool changed = false;
+                foreach (var cam in rig.GetComponentsInChildren<Camera>(true))
+                {
+                    if (cam.farClipPlane >= 60000f) continue;
+                    cam.farClipPlane = 60000f;
+                    changed = true;
+                }
+                if (changed)
+                {
+                    PrefabUtility.SaveAsPrefabAsset(rig, rigPath);
+                    Debug.Log("[NasaHack] XR Rig camera far clip set to 60 km.");
+                }
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(rig);
+            }
+        }
 
         static void ConfigureTextures()
         {
@@ -142,29 +208,116 @@ namespace NasaHack.EditorTools
             data.size = new Vector3(sizeM, meta.maxElevation - meta.minElevation, sizeM);
             data.SetHeights(0, 0, heights);
 
-            var sand = LoadOrCreateLayer(MarsDir + "/Sand.terrainlayer", SandAlbedo, SandNormal, 3f);
-            var rock = LoadOrCreateLayer(MarsDir + "/Rock.terrainlayer", RockAlbedo, null, 2f);
-            data.terrainLayers = new[] { sand, rock };
-
-            // Rock shows through on slopes and in patches; sand everywhere else.
-            const int alphaRes = 1024;
-            data.alphamapResolution = alphaRes;
-            var alpha = new float[alphaRes, alphaRes, 2];
-            for (int z = 0; z < alphaRes; z++)
-                for (int x = 0; x < alphaRes; x++)
-                {
-                    float nx = x / (float)(alphaRes - 1), nz = z / (float)(alphaRes - 1);
-                    float steep = data.GetSteepness(nx, nz);
-                    float patch = Mathf.PerlinNoise(nx * 40f + 3.1f, nz * 40f + 7.7f);
-                    float rockW = Mathf.Clamp01((steep - 8f) / 14f) + Mathf.Clamp01((patch - 0.62f) * 4f) * 0.6f;
-                    rockW = Mathf.Clamp01(rockW);
-                    alpha[z, x, 0] = 1f - rockW;
-                    alpha[z, x, 1] = rockW;
-                }
-            data.SetAlphamaps(0, 0, alpha);
+            AssignLayers(data, far: false);
             EditorUtility.SetDirty(data);
             AssetDatabase.SaveAssets();
             return data;
+        }
+
+        static TerrainData BuildFarTerrainData()
+        {
+            var meta = JsonUtility.FromJson<FarMetaData>(File.ReadAllText(FarMeta));
+            var bytes = File.ReadAllBytes(FarRaw);
+            if (bytes.Length != FarResolution * FarResolution * 2)
+                throw new System.Exception($"[NasaHack] {FarRaw} should be {FarResolution}x{FarResolution} 16-bit.");
+            var heights = new float[FarResolution, FarResolution];
+            for (int z = 0; z < FarResolution; z++)
+                for (int x = 0; x < FarResolution; x++)
+                {
+                    int i = (z * FarResolution + x) * 2;
+                    heights[z, x] = (bytes[i] | (bytes[i + 1] << 8)) / 65535f;
+                }
+            var data = AssetDatabase.LoadAssetAtPath<TerrainData>(FarTerrainDataPath);
+            if (data == null)
+            {
+                data = new TerrainData();
+                AssetDatabase.CreateAsset(data, FarTerrainDataPath);
+            }
+            float sizeM = (FarResolution - 1) * meta.metersPerPixel;
+            data.heightmapResolution = FarResolution;
+            data.size = new Vector3(sizeM, meta.maxElevation - meta.minElevation, sizeM);
+            data.SetHeights(0, 0, heights);
+            AssignLayers(data, far: true);
+            EditorUtility.SetDirty(data);
+            AssetDatabase.SaveAssets();
+            return data;
+        }
+
+        static void BuildFarTerrain(TerrainData data)
+        {
+            var meta = JsonUtility.FromJson<FarMetaData>(File.ReadAllText(FarMeta));
+            var old = GameObject.Find("Mars Far Terrain");
+            if (old != null) Object.DestroyImmediate(old);
+            var go = Terrain.CreateTerrainGameObject(data);
+            go.name = "Mars Far Terrain";
+            go.isStatic = true;
+            var terrain = go.GetComponent<Terrain>();
+            terrain.materialTemplate = GraphicsSettings.currentRenderPipeline.defaultTerrainMaterial;
+            terrain.heightmapPixelError = 25f;
+            terrain.basemapDistance = 3000f;
+            terrain.drawInstanced = true;
+            terrain.shadowCastingMode = ShadowCastingMode.Off;
+            Object.DestroyImmediate(go.GetComponent<TerrainCollider>());
+            float roverX = meta.roverPixelX * meta.metersPerPixel;
+            float roverZ = meta.roverPixelZ * meta.metersPerPixel;
+            float roverY = meta.roverElevation - meta.minElevation;
+            go.transform.position = new Vector3(RoverPosition.x - roverX, -roverY, RoverPosition.z - roverZ);
+        }
+
+        // Paints the terrain. With the pack: rippled sand on flats, pebble soil in patches, gravel on
+        // moderate slopes, cracked bedrock on the steep valley walls. Without it: generated sand + rock.
+        static void AssignLayers(TerrainData data, bool far)
+        {
+            string suffix = far ? " Far" : "";
+            float k = far ? 18f : 1f; // bigger tiles on the far terrain
+            TerrainLayer[] layers;
+            if (HasPack)
+            {
+                layers = new[]
+                {
+                    LoadOrCreateLayer(MarsDir + "/ML Sand" + suffix + ".terrainlayer", PackTex + "Ground_01_D.png", PackTex + "Ground_01_N.png", 16f * k),
+                    LoadOrCreateLayer(MarsDir + "/ML Pebbles" + suffix + ".terrainlayer", PackTex + "Ground_00_D.png", PackTex + "Ground_00_N.png", 6f * k),
+                    LoadOrCreateLayer(MarsDir + "/ML Gravel" + suffix + ".terrainlayer", PackTex + "Ground_03_D.png", PackTex + "Ground_03_N.png", 10f * k),
+                    LoadOrCreateLayer(MarsDir + "/ML Bedrock" + suffix + ".terrainlayer", PackTex + "Ground_02_D.png", PackTex + "Ground_02_N.png", 12f * k),
+                };
+            }
+            else
+            {
+                layers = new[]
+                {
+                    LoadOrCreateLayer(MarsDir + "/Sand" + suffix + ".terrainlayer", SandAlbedo, SandNormal, 3f * k),
+                    LoadOrCreateLayer(MarsDir + "/Rock" + suffix + ".terrainlayer", RockAlbedo, null, 2f * k),
+                };
+            }
+            data.terrainLayers = layers;
+
+            int res = far ? 256 : 1024;
+            data.alphamapResolution = res;
+            var alpha = new float[res, res, layers.Length];
+            for (int z = 0; z < res; z++)
+                for (int x = 0; x < res; x++)
+                {
+                    float nx = x / (float)(res - 1), nz = z / (float)(res - 1);
+                    float steep = data.GetSteepness(nx, nz);
+                    float n1 = Mathf.PerlinNoise(nx * 25f + 3.1f, nz * 25f + 7.7f);
+                    float n2 = Mathf.PerlinNoise(nx * 90f + 5.3f, nz * 90f + 9.1f);
+                    if (layers.Length == 4)
+                    {
+                        float bedrock = Mathf.Clamp01((steep - 13f) / 8f);
+                        float gravel = Mathf.Clamp01((steep - 5f + (n2 - 0.5f) * 4f) / 8f) * (1f - bedrock);
+                        float flat = 1f - Mathf.Clamp01(steep / 6f);
+                        float pebbles = flat * Mathf.Clamp01((n1 - 0.45f) * 3f) * (1f - gravel - bedrock);
+                        float sand = Mathf.Max(0f, 1f - bedrock - gravel - pebbles);
+                        float sum = sand + pebbles + gravel + bedrock;
+                        alpha[z, x, 0] = sand / sum; alpha[z, x, 1] = pebbles / sum; alpha[z, x, 2] = gravel / sum; alpha[z, x, 3] = bedrock / sum;
+                    }
+                    else
+                    {
+                        float rockW = Mathf.Clamp01(Mathf.Clamp01((steep - 8f) / 14f) + Mathf.Clamp01((n1 - 0.62f) * 4f) * 0.6f);
+                        alpha[z, x, 0] = 1f - rockW; alpha[z, x, 1] = rockW;
+                    }
+                }
+            data.SetAlphamaps(0, 0, alpha);
         }
 
         static TerrainLayer LoadOrCreateLayer(string path, string albedo, string normal, float tile)
@@ -259,13 +412,16 @@ namespace NasaHack.EditorTools
 
         // ---------- per scene ----------
 
-        static void BuildScene(Meta meta, TerrainData data, Material sky, Mesh[] rockMeshes, Material rockMat, bool isTitle)
+        static void BuildScene(Meta meta, TerrainData data, Material sky, Mesh[] rockMeshes, Material rockMat, bool isTitle, bool scatterRocks, bool dusk)
         {
             foreach (var name in new[] { "Ground (teleport)", "Mars Terrain", "Mars Rocks" })
             {
                 var old = GameObject.Find(name);
                 if (old != null) Object.DestroyImmediate(old);
             }
+            // Other terrains in the scene (e.g. a placeholder) are switched off, not deleted.
+            foreach (var t in Object.FindObjectsOfType<Terrain>())
+                if (t.name != "Mars Terrain" && t.name != "Mars Far Terrain") t.gameObject.SetActive(false);
 
             // Terrain, positioned so the rover pixel sits at RoverPosition, at height 0.
             var terrainGo = Terrain.CreateTerrainGameObject(data);
@@ -282,65 +438,130 @@ namespace NasaHack.EditorTools
             terrainGo.transform.position = new Vector3(RoverPosition.x - roverX, -roverY, RoverPosition.z - roverZ);
             terrainGo.AddComponent<TeleportationArea>();
 
-            ScatterRocks(terrain, rockMeshes, rockMat, isTitle ? 11 : 23);
+            if (scatterRocks) ScatterRocks(terrain, rockMeshes, rockMat, isTitle ? 11 : 23);
 
             // Sky, haze and sun
-            RenderSettings.skybox = sky;
+            if (sky != null) RenderSettings.skybox = sky;
             RenderSettings.ambientMode = AmbientMode.Skybox;
             RenderSettings.ambientIntensity = 1.1f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Exponential;
-            RenderSettings.fogDensity = 0.0015f;
-            RenderSettings.fogColor = new Color(0.84f, 0.70f, 0.56f);
+            RenderSettings.fogDensity = 0.00015f;   // thin Mars air: the far rim 20 km out stays faintly visible
+            RenderSettings.fogColor = dusk ? new Color(0.42f, 0.33f, 0.28f) : new Color(0.84f, 0.70f, 0.56f);
+            RenderSettings.ambientIntensity = dusk ? 0.75f : 1.1f;
 
             var sun = Object.FindObjectsOfType<Light>().FirstOrDefault(l => l.type == LightType.Directional);
             if (sun != null)
             {
-                sun.transform.rotation = Quaternion.Euler(38f, 150f, 0f);
-                sun.color = new Color(1f, 0.92f, 0.82f);
-                sun.intensity = 1.25f;
+                if (dusk)
+                {
+                    // Sun sits in the glow of the dusk skybox: just above the horizon, about 11 degrees east of +Z.
+                    sun.transform.rotation = Quaternion.Euler(5f, 191f, 0f);
+                    sun.color = new Color(1f, 0.78f, 0.62f);
+                    sun.intensity = 0.9f;
+                }
+                else
+                {
+                    sun.transform.rotation = Quaternion.Euler(38f, 150f, 0f);
+                    sun.color = new Color(1f, 0.92f, 0.82f);
+                    sun.intensity = 1.25f;
+                }
                 sun.shadows = LightShadows.Soft;
-                sun.shadowStrength = 0.8f;
+                sun.shadowStrength = 0.85f;
             }
             DynamicGI.UpdateEnvironment();
         }
 
+        struct RockSource
+        {
+            public Mesh mesh;
+            public Material material;
+            public Bounds bounds;
+        }
+
+        // Rock meshes from the pack with URP copies of their materials; falls back to the generated blobs.
+        static System.Collections.Generic.List<RockSource> RockSources(Mesh[] fallbackMeshes, Material fallbackMat)
+        {
+            var list = new System.Collections.Generic.List<RockSource>();
+            if (HasPack)
+            {
+                foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { PackDir + "/Prefabs" }))
+                {
+                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GUIDToAssetPath(guid));
+                    var mf = prefab != null ? prefab.GetComponentInChildren<MeshFilter>() : null;
+                    var mr = prefab != null ? prefab.GetComponentInChildren<MeshRenderer>() : null;
+                    if (mf == null || mf.sharedMesh == null || mr == null || mr.sharedMaterial == null) continue;
+                    list.Add(new RockSource { mesh = mf.sharedMesh, material = UrpCopy(mr.sharedMaterial), bounds = mf.sharedMesh.bounds });
+                }
+            }
+            if (list.Count == 0)
+                foreach (var m in fallbackMeshes) list.Add(new RockSource { mesh = m, material = fallbackMat, bounds = m.bounds });
+            return list;
+        }
+
+        // Built-in Standard -> URP Lit, keeping albedo, normal and metallic/smoothness maps.
+        static Material UrpCopy(Material source)
+        {
+            var path = MarsDir + "/" + source.name + " (URP).mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = source.name + " (URP)" };
+            if (source.HasProperty("_MainTex")) mat.SetTexture("_BaseMap", source.GetTexture("_MainTex"));
+            if (source.HasProperty("_BumpMap") && source.GetTexture("_BumpMap") != null)
+            {
+                mat.SetTexture("_BumpMap", source.GetTexture("_BumpMap"));
+                mat.EnableKeyword("_NORMALMAP");
+            }
+            if (source.HasProperty("_MetallicGlossMap") && source.GetTexture("_MetallicGlossMap") != null)
+            {
+                mat.SetTexture("_MetallicGlossMap", source.GetTexture("_MetallicGlossMap"));
+                mat.EnableKeyword("_METALLICSPECGLOSSMAP");
+            }
+            mat.SetFloat("_Smoothness", 0.35f);
+            mat.SetFloat("_Metallic", 0f);
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
+        }
+
         static void ScatterRocks(Terrain terrain, Mesh[] meshes, Material mat, int seed)
         {
+            var sources = RockSources(meshes, mat);
             var parent = new GameObject("Mars Rocks").transform;
             var rng = new System.Random(seed);
             var data = terrain.terrainData;
             var origin = terrain.transform.position;
-
-            // Keep the pad around the rover and player clear.
             var keepClear = new[] { RoverPosition, Vector3.zero, new Vector3(2.2f, 0f, 5f) };
 
             int placed = 0, tries = 0;
-            while (placed < 260 && tries < 4000)
+            while (placed < 320 && tries < 5000)
             {
                 tries++;
-                // more rocks near the player, thinning out with distance
-                float dist = 6f + 150f * Mathf.Pow((float)rng.NextDouble(), 1.6f);
+                float dist = 5f + 160f * Mathf.Pow((float)rng.NextDouble(), 1.6f);
                 float ang = (float)rng.NextDouble() * Mathf.PI * 2f;
                 var pos = new Vector3(Mathf.Cos(ang) * dist, 0f, Mathf.Sin(ang) * dist);
-                if (keepClear.Any(k => Vector3.Distance(new Vector3(k.x, 0f, k.z), pos) < 5f)) continue;
+                if (keepClear.Any(k => Vector3.Distance(new Vector3(k.x, 0f, k.z), pos) < 4.5f)) continue;
 
                 float nx = (pos.x - origin.x) / data.size.x, nz = (pos.z - origin.z) / data.size.z;
                 if (nx <= 0f || nx >= 1f || nz <= 0f || nz >= 1f) continue;
                 pos.y = terrain.SampleHeight(pos) + origin.y;
                 var normal = data.GetInterpolatedNormal(nx, nz);
 
-                float size = 0.12f + 1.1f * Mathf.Pow((float)rng.NextDouble(), 3f);
-                if (dist > 80f) size *= 2.5f; // distant boulders read from afar
+                var src = sources[rng.Next(sources.Count)];
+                float size = 0.15f + 1.3f * Mathf.Pow((float)rng.NextDouble(), 3f);
+                if (dist > 90f) size *= 2.5f;
+                float scale = size / Mathf.Max(src.bounds.size.x, Mathf.Max(src.bounds.size.y, src.bounds.size.z));
+
                 var rock = new GameObject("Rock");
                 rock.transform.SetParent(parent, false);
-                rock.transform.position = pos - normal * size * 0.15f;
                 rock.transform.rotation = Quaternion.FromToRotation(Vector3.up, normal) * Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f);
-                rock.transform.localScale = new Vector3(size * (0.8f + 0.5f * (float)rng.NextDouble()), size, size * (0.8f + 0.5f * (float)rng.NextDouble()));
+                rock.transform.localScale = Vector3.one * scale;
+                // sit on the ground, a little buried
+                float bottom = src.bounds.min.y * scale;
+                rock.transform.position = pos - normal * (bottom + size * 0.12f);
                 rock.isStatic = true;
-                rock.AddComponent<MeshFilter>().sharedMesh = meshes[rng.Next(meshes.Length)];
+                rock.AddComponent<MeshFilter>().sharedMesh = src.mesh;
                 var mr = rock.AddComponent<MeshRenderer>();
-                mr.sharedMaterial = mat;
+                mr.sharedMaterial = src.material;
                 mr.shadowCastingMode = size > 0.3f ? ShadowCastingMode.On : ShadowCastingMode.Off;
                 placed++;
             }

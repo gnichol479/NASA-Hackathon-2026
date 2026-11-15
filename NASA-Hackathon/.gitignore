@@ -112,3 +112,7 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Asset Store pack (license forbids redistribution): import it from the store, see README
+/[Aa]ssets/Mars Landscape 3D/
+/[Aa]ssets/Mars Landscape 3D.meta
