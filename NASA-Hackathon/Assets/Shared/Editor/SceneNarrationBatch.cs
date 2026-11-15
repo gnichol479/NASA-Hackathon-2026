@@ -14,6 +14,12 @@ namespace NasaHack.EditorTools
     {
         const string ManifestPath = "Library/LastSignalNarration/manifest.json";
 
+        public static void PrepareAndAssignAll()
+        {
+            ExportManifest();
+            AssignManifest();
+        }
+
         [Serializable]
         public sealed class NarrationManifest
         {

@@ -2529,7 +2529,7 @@ Terrain:
   m_TreeMaximumFullLODCount: 50
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
-  m_HeightmapPixelError: 6
+  m_HeightmapPixelError: 12
   m_SplatMapDistance: 400
   m_HeightmapMinimumLODSimplification: 0
   m_HeightmapMaximumLOD: 0
@@ -20923,18 +20923,18 @@ MonoBehaviour:
     of life. Opportunity operated from 2004 to 2018, far beyond its planned 90-sol
     mission. Contact was lost during a Mars-wide dust storm; NASA ended the mission
     in 2019.'
-  landingIntroductionNarration: {fileID: 0}
+  landingIntroductionNarration: {fileID: 8300000, guid: 12651a4aa9ef0814c94a0c3da0986cbd, type: 3}
   sampleNarrationClips:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  incorrectConclusionNarration: {fileID: 0}
-  conclusionNarration: {fileID: 0}
+  - {fileID: 8300000, guid: c74c6fc652b038d469aca087dee0e1ad, type: 3}
+  - {fileID: 8300000, guid: f1eec5b2bad71e744bd9b4ae7d33be24, type: 3}
+  - {fileID: 8300000, guid: 564c5adc441515f48bf69186e11d2915, type: 3}
+  incorrectConclusionNarration: {fileID: 8300000, guid: f47de7c1fe0beaf4686fab990496503c, type: 3}
+  conclusionNarration: {fileID: 8300000, guid: 49eef913d0027f148ba47a6a7a0abb4d, type: 3}
   detailedRoverPrefab: {fileID: 919132149155446097, guid: 8ce3fc48e8894284d962fc31f35ca28e, type: 3}
   deploymentClip: {fileID: -623603649343465320, guid: 8ce3fc48e8894284d962fc31f35ca28e, type: 3}
   deploymentSeconds: 4
-  thirdPersonDistance: 3
-  thirdPersonHeight: 2.5
+  thirdPersonDistance: 3.5
+  thirdPersonHeight: 1.8
 --- !u!1 &1461179159
 GameObject:
   m_ObjectHideFlags: 0
