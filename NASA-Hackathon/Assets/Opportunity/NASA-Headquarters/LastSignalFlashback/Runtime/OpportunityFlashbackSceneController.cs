@@ -47,6 +47,12 @@ namespace LastSignal.OpportunityFlashback
         [SerializeField] private Transform opportunityModelAnchor;
         [Tooltip("Optional final model prefab. The interaction scaffold remains separate and can be replaced later.")]
         [SerializeField] private GameObject finalOpportunityModelPrefab;
+        [Tooltip("Optional imported FBX pose clip. The widest-footprint endpoint is selected for deployed solar arrays.")]
+        [SerializeField] private AnimationClip deployedRoverPose;
+        [Tooltip("Scale for the assigned rover model. The shared detailed FBX is authored in meters and uses 1.")]
+        [SerializeField] private float finalOpportunityModelScale = 1f;
+        [Tooltip("Yaw correction for the assigned detailed Opportunity FBX so it faces the assembly area.")]
+        [SerializeField] private Vector3 finalOpportunityModelEuler = new Vector3(0f, 180f, 0f);
 
         [Header("Narration clips — ElevenLabs Brian")]
         [SerializeField] private string narrationVoiceId = ElevenLabsBrianVoiceId;
@@ -130,10 +136,12 @@ namespace LastSignal.OpportunityFlashback
         }
 
         /// <summary>Used by the Editor verification menu without starting a Unity play session.</summary>
-        public void InitializeForEditorVerification(GameObject importedModelPrefab = null)
+        public void InitializeForEditorVerification(GameObject importedModelPrefab = null, AnimationClip importedModelPose = null)
         {
             if (!hasBuilt && importedModelPrefab != null)
                 finalOpportunityModelPrefab = importedModelPrefab;
+            if (!hasBuilt && importedModelPose != null)
+                deployedRoverPose = importedModelPose;
             BuildExperience(true);
         }
 
@@ -184,7 +192,10 @@ namespace LastSignal.OpportunityFlashback
             {
                 finalModelInstance = Instantiate(finalOpportunityModelPrefab, opportunityModelAnchor, false);
                 finalModelInstance.name = "Opportunity Final Model (assigned prefab)";
-                OpportunityFacilityLayout.PlaceRoverOnFixture(finalModelInstance.transform, opportunityModelAnchor);
+                OpportunityFacilityLayout.PrepareDetailedOpportunityModel(
+                    finalModelInstance, deployedRoverPose, finalOpportunityModelEuler);
+                OpportunityFacilityLayout.PlaceRoverOnFixture(
+                    finalModelInstance.transform, opportunityModelAnchor, finalOpportunityModelScale);
             }
         }
 
@@ -236,8 +247,11 @@ namespace LastSignal.OpportunityFlashback
                     }
                 }
                 else OpportunityFacilityLayout.BuildPartVisuals(part.transform, kind, facility.Palette);
-                // Collect after the visible meshes exist, so an assigned final model can replace them.
-                componentRenderers.AddRange(part.GetComponentsInChildren<Renderer>(true));
+                // Collect only visible model geometry. Placeholder meshes intentionally disabled
+                // on the assigned FBX must stay hidden when the tray copies are reset.
+                foreach (Renderer renderer in part.GetComponentsInChildren<Renderer>(true))
+                    if (renderer != null && renderer.enabled)
+                        componentRenderers.Add(renderer);
                 assemblyParts.Add(part);
             }
             if (useModelParts)

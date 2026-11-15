@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Text;
 using LastSignal.OpportunityFlashback.EditorTools;
 using TMPro;
@@ -105,12 +106,21 @@ namespace LastSignal.OpportunityFlashback.Editor
             if (controller.OpportunityModelAnchor != null)
                 controller.OpportunityModelAnchor.localPosition = OpportunityFacilityLayout.RoverOrigin;
             var roverModel = AssetDatabase.LoadAssetAtPath<GameObject>(RoverModelPath);
+            var serialized = new SerializedObject(controller);
+            AnimationClip roverPose = serialized.FindProperty("deployedRoverPose").objectReferenceValue as AnimationClip;
+            if (roverPose == null)
+                roverPose = AssetDatabase.LoadAllAssetsAtPath(RoverModelPath)
+                    .OfType<AnimationClip>()
+                    .FirstOrDefault(clip => !clip.name.StartsWith("__preview__", System.StringComparison.Ordinal));
+            float modelScale = serialized.FindProperty("finalOpportunityModelScale").floatValue;
+            Vector3 modelEuler = serialized.FindProperty("finalOpportunityModelEuler").vector3Value;
             Transform preview = OpportunityFacilityLayout.Group("ASSEMBLY PREVIEW - Edit mode only",facility.transform);
             preview.gameObject.tag = "EditorOnly";
             facility.SetAssemblyPreview(preview.gameObject);
             GameObject scaffoldVisuals;
             GameObject scaffoldRoot = OpportunityFacilityLayout.BuildScaffold(preview,palette,out scaffoldVisuals);
-            bool hasRoverModelPreview = BuildRoverModelPreview(roverModel,preview,scaffoldRoot,scaffoldVisuals,controller.OpportunityModelAnchor);
+            bool hasRoverModelPreview = BuildRoverModelPreview(roverModel,roverPose,modelScale,modelEuler,
+                preview,scaffoldRoot,scaffoldVisuals,controller.OpportunityModelAnchor);
             for (int i = 0; i < 3; i++)
             {
                 if (!hasRoverModelPreview)
@@ -127,11 +137,12 @@ namespace LastSignal.OpportunityFlashback.Editor
             }
             OpportunityFacilityLayout.BuildStatusDisplay(preview);
             // Preserve the anchor object and all assignments/events; the imported prefab is only instantiated during play.
-            var serialized = new SerializedObject(controller);
             var voice = serialized.FindProperty("narrationVoiceId");
             if (voice.stringValue == "nPczcJzI2devNBz1zQrb") voice.stringValue = OpportunityFlashbackSceneController.ElevenLabsBrianVoiceId;
             if (roverModel != null)
                 serialized.FindProperty("finalOpportunityModelPrefab").objectReferenceValue = roverModel;
+            if (roverPose != null)
+                serialized.FindProperty("deployedRoverPose").objectReferenceValue = roverPose;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             AddSavedPlayerRig(controller.gameObject.scene);
@@ -145,14 +156,15 @@ namespace LastSignal.OpportunityFlashback.Editor
             Debug.Log("[Last Signal] High-bay Opportunity facility rebuilt and saved. Play mode reuses this exact room.");
         }
 
-        private static bool BuildRoverModelPreview(GameObject roverModel,Transform preview,GameObject scaffoldRoot,
-            GameObject scaffoldVisuals,Transform fixtureAnchor)
+        private static bool BuildRoverModelPreview(GameObject roverModel,AnimationClip roverPose,float modelScale,
+            Vector3 modelEuler,Transform preview,GameObject scaffoldRoot,GameObject scaffoldVisuals,Transform fixtureAnchor)
         {
             if (roverModel == null || fixtureAnchor == null) return false;
             GameObject model = Object.Instantiate(roverModel);
-            model.name = "Opportunity FBX — edit-mode assembly preview";
+            model.name = "Opportunity complete rover reference — edit-mode preview";
             model.transform.SetParent(preview,false);
-            OpportunityFacilityLayout.PlaceRoverOnFixture(model.transform,fixtureAnchor);
+            OpportunityFacilityLayout.PrepareDetailedOpportunityModel(model,roverPose,modelEuler);
+            OpportunityFacilityLayout.PlaceRoverOnFixture(model.transform,fixtureAnchor,modelScale);
             Transform[][] sources = OpportunityFacilityLayout.FindRoverComponentSources(model.transform);
             if (sources == null)
             {
@@ -176,10 +188,13 @@ namespace LastSignal.OpportunityFlashback.Editor
                 Transform socket = scaffoldRoot.transform.Find(OpportunityFacilityLayout.SocketNames[i]);
                 Transform guide = socket.Find("Mount guide");
                 OpportunityFacilityLayout.PlaceSocketOnModelPart(socket,guide,bounds[i],model.transform.rotation);
+                guide.gameObject.SetActive(false);
                 Transform part = OpportunityFacilityLayout.Group(((OpportunityPartKind)i) + " — imported rover part on tray",preview);
                 part.position = OpportunityFacilityLayout.GetComponentTraySpawn(i,bounds[i]);
                 part.rotation = model.transform.rotation;
                 OpportunityFacilityLayout.BuildExtractedModelPart(model.transform,sources[i],bounds[i],part);
+                // The edit-mode room preview mirrors the initial assembly state: parts live on
+                // their preparation bench until the player snaps them onto the rover.
                 foreach (Transform source in sources[i]) source.gameObject.SetActive(false);
             }
             return true;

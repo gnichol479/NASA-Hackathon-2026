@@ -14,7 +14,7 @@ namespace LastSignal.OpportunityFlashback
     /// <summary>Meter-scale layout and shared geometry for both the saved scene and runtime interactions.</summary>
     public static class OpportunityFacilityLayout
     {
-        public const int Version = 8;
+        public const int Version = 17;
         public const string EnvironmentName = "FACILITY - Opportunity Integration Bay";
         public static readonly Vector3 Arrival = new Vector3(0f, 0f, -6.1f);
         public static readonly Vector3 RoverOrigin = new Vector3(0f, 0.96f, 1.5f);
@@ -39,6 +39,30 @@ namespace LastSignal.OpportunityFlashback
         {
             "Floor", "CleanRoomWall", "Trim", "MissionBlue", "Graphite", "BrushedMetal", "Light",
             "ObservationGlass", "RoverChassis", "RoverTire", "SolarCells", "SocketCyan", "SafetyOrange", "Display", "Paper"
+        };
+        // The working Arrival/Legacy scenes hide these Blender proxy meshes from the imported FBX.
+        // Keep the same paths here so the flashback never displays the large _root proxy as a cube.
+        private static readonly string[] LegacyPlaceholderPaths =
+        {
+            "_root",
+            "_root/body/arm_mount/arm_base/Cube.010",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008",
+            "_root/body/arm_mount/arm_base/Cube.010/arm_joint1/Cube.008/arm_joint2/Cube.007",
+            "_root/body/mast/Cube.012",
+            "_root/body/panels_left/panels_left_front/Cube.006",
+            "_root/body/panels_right/panels_right_front/Cube.029",
+            "_root/body/suspension_left_front/Cube.025",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022",
+            "_root/body/suspension_left_front/Cube.025/suspension_left_front_rocker/Cube.022/suspension_left_front_axl/Cube.005",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/Cube.003",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021",
+            "_root/body/suspension_left_middle_rocker/suspension_left_rear_rocker1/suspension_left_rear_rocker2/Cube.021/suspension_left_rear_axl/Cube.004",
+            "_root/body/suspension_right_front/Cube.000",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001",
+            "_root/body/suspension_right_front/Cube.000/suspension_right_front_rocker/Cube.001/suspension_right_front_axl/Cube.009",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/Cube.002",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020",
+            "_root/body/suspension_right_middle_rocker/suspension_right_rear_rocker1/suspension_right_rear_rocker2/Cube.020/suspension_right_rear_axl/Cube"
         };
         private static readonly Color[] Colors =
         {
@@ -93,15 +117,60 @@ namespace LastSignal.OpportunityFlashback
             RenderSettings.reflectionIntensity = .25f;
         }
 
-        public static void PlaceRoverOnFixture(Transform model, Transform fixtureAnchor)
+        public static void PlaceRoverOnFixture(Transform model, Transform fixtureAnchor, float scale = 1f)
         {
             if (model == null || fixtureAnchor == null) return;
-            model.localScale = Vector3.one * .72f;
+            model.localScale = Vector3.one * Mathf.Max(.01f, scale);
             Bounds bounds = GetBounds(model.GetComponentsInChildren<Renderer>(true));
             if (bounds.size == Vector3.zero) return;
             Vector3 destination = fixtureAnchor.position;
             Vector3 correction = new Vector3(destination.x - bounds.center.x, .80f - bounds.min.y, destination.z - bounds.center.z);
             model.position += correction;
+        }
+
+        public static void PrepareDetailedOpportunityModel(GameObject model, AnimationClip deployedPose, Vector3 euler)
+        {
+            if (model == null) return;
+
+            Quaternion facing = Quaternion.Euler(euler);
+            model.transform.localRotation = facing;
+            HideImportedPlaceholderGeometry(model);
+            foreach (Animator animator in model.GetComponentsInChildren<Animator>(true))
+                animator.enabled = false;
+
+            if (deployedPose != null)
+            {
+                deployedPose.SampleAnimation(model, 0f);
+                Bounds startBounds = GetBounds(model.GetComponentsInChildren<Renderer>(true));
+                deployedPose.SampleAnimation(model, deployedPose.length);
+                Bounds endBounds = GetBounds(model.GetComponentsInChildren<Renderer>(true));
+                float startFootprint = startBounds.size.x * startBounds.size.z;
+                float endFootprint = endBounds.size.x * endBounds.size.z;
+                deployedPose.SampleAnimation(model, endFootprint >= startFootprint ? deployedPose.length : 0f);
+                model.transform.localRotation = facing;
+            }
+
+            HideImportedPlaceholderGeometry(model);
+        }
+
+        public static void HideImportedPlaceholderGeometry(GameObject model)
+        {
+            if (model == null) return;
+            foreach (string path in LegacyPlaceholderPaths)
+            {
+                Transform placeholder = model.transform.Find(path);
+                Renderer placeholderRenderer = placeholder != null ? placeholder.GetComponent<Renderer>() : null;
+                if (placeholderRenderer != null) placeholderRenderer.enabled = false;
+            }
+
+            foreach (Renderer renderer in model.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer == null) continue;
+                string objectName = renderer.name;
+                if (objectName.StartsWith("Cube", System.StringComparison.OrdinalIgnoreCase) ||
+                    objectName.StartsWith("_Hemi", System.StringComparison.OrdinalIgnoreCase))
+                    renderer.enabled = false;
+            }
         }
 
         public static Transform[][] FindRoverComponentSources(Transform modelRoot)
@@ -118,8 +187,19 @@ namespace LastSignal.OpportunityFlashback
         public static Bounds GetBounds(Renderer[] renderers)
         {
             if (renderers == null || renderers.Length == 0) return new Bounds(Vector3.zero, Vector3.zero);
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            Bounds bounds = new Bounds(Vector3.zero, Vector3.zero);
+            bool hasBounds = false;
+            foreach (Renderer renderer in renderers)
+            {
+                if (renderer == null || !renderer.enabled) continue;
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else bounds.Encapsulate(renderer.bounds);
+            }
+            if (!hasBounds) return new Bounds(Vector3.zero, Vector3.zero);
             return bounds;
         }
 
@@ -133,6 +213,7 @@ namespace LastSignal.OpportunityFlashback
                 if (source == null) continue;
                 foreach (Renderer renderer in source.GetComponentsInChildren<Renderer>(true))
                 {
+                    if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy) continue;
                     if (!hasRenderer) { bounds = renderer.bounds; hasRenderer = true; }
                     else bounds.Encapsulate(renderer.bounds);
                 }
@@ -181,6 +262,7 @@ namespace LastSignal.OpportunityFlashback
                 clone.transform.localPosition = inverseModelRotation * (source.position - bounds.center);
                 clone.transform.localRotation = inverseModelRotation * source.rotation;
                 clone.transform.localScale = source.lossyScale;
+                HideImportedPlaceholderGeometry(clone);
                 foreach (Collider collider in clone.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
             }
         }
@@ -358,10 +440,10 @@ namespace LastSignal.OpportunityFlashback
 
             Transform platform = Group("Opportunity central assembly fixture", root);
             platform.localPosition = new Vector3(0f,0f,1.5f);
-            Cube(platform, "Recessed fixture plinth", new Vector3(0f,.20f,0f), new Vector3(2.2f,.4f,1.35f), p[2], true);
-            Cube(platform, "Fixture cabinet", new Vector3(0f,.52f,0f), new Vector3(2.55f,.5f,1.5f), p[1], true);
-            Cube(platform, "Machined assembly surface", new Vector3(0f,.735f,0f), new Vector3(2.8f,.09f,1.7f), p[5], true);
-            Cube(platform, "Clean protective mat", new Vector3(0f,.786f,0f), new Vector3(2.62f,.012f,1.52f), p[4]);
+            Cube(platform, "Recessed fixture plinth", new Vector3(0f,.20f,0f), new Vector3(2.2f,.4f,2.0f), p[2], true);
+            Cube(platform, "Fixture cabinet", new Vector3(0f,.52f,0f), new Vector3(2.55f,.5f,2.18f), p[1], true);
+            Cube(platform, "Machined assembly surface", new Vector3(0f,.735f,0f), new Vector3(2.8f,.09f,2.4f), p[5], true);
+            Cube(platform, "Clean protective mat", new Vector3(0f,.786f,0f), new Vector3(2.62f,.012f,2.22f), p[4]);
             Cube(platform, "Fixture blue fascia", new Vector3(0f,.53f,-.765f), new Vector3(2.5f,.21f,.025f), p[3]);
             Label(platform, "Fixture identification plate", new Vector3(0f,.535f,-.785f), Quaternion.identity,
                 new Vector2(2.2f,.16f), "OPPORTUNITY   /   EDUCATIONAL ASSEMBLY", .063f, Color.white, TextAlignmentOptions.Center);
@@ -369,12 +451,14 @@ namespace LastSignal.OpportunityFlashback
             // Three separate trays on one continuous bench, all approached from the clear central aisle.
             Transform benches = Group("Component preparation bench", root);
             benches.localPosition = new Vector3(-4.65f,0f,1.25f);
-            Bench(benches, Vector3.zero, new Vector2(1.35f,4.75f), p);
+            // The full solar array spans more than two meters. A wide preparation table keeps it
+            // supported while leaving a clear aisle between the bench and central fixture.
+            Bench(benches, Vector3.zero, new Vector2(2.8f,4.75f), p);
             string[] names = { "01   SOLAR PANEL", "02   CAMERA MAST", "03   INSTRUMENT ARM" };
             for (int i = 0; i < 3; i++)
             {
                 float z = -1.55f+i*1.55f;
-                Cube(benches, "Anti-static component tray " + (i+1), new Vector3(0f,.966f,z), new Vector3(1.22f,.025f,1.35f), p[3]);
+                Cube(benches, "Anti-static component tray " + (i+1), new Vector3(0f,.966f,z), new Vector3(2.55f,.025f,1.35f), p[3]);
                 Placard(benches, names[i], new Vector3(.70f,1.06f,z), Quaternion.Euler(0f,-90f,0f), new Vector2(1.1f,.19f), .062f, p);
             }
             // The systems console is off the assembly platform, leaving the rover unobstructed.
