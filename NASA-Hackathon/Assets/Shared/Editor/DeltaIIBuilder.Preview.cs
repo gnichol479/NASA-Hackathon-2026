@@ -11,11 +11,11 @@ namespace NasaHack.EditorTools
     //
     //   NasaHack > Opportunity > Capture Launch Previews   ->  Library/LaunchPreview/*.png
     //
-    // It also watches for Library/LaunchPreview/request ("capture", "build" or "build insight"), so a rebuild and
+    // It also watches for Library/LaunchPreview/request ("capture", "build", "build insight" or "build title"), so a rebuild and
     // new renders can be asked for from outside Unity. Nothing here runs unless that file exists.
     public static partial class DeltaIIBuilder
     {
-        const string PreviewDir = "Library/LaunchPreview";
+        internal const string PreviewDir = "Library/LaunchPreview";
         static string RequestFile => PreviewDir + "/request";
         static string DoneFile => PreviewDir + "/done.txt";
         static double nextPoll;
@@ -36,11 +36,11 @@ namespace NasaHack.EditorTools
             string request = File.ReadAllText(RequestFile).Trim();
             try
             {
-                bool insight = request.EndsWith("insight");
+                bool insight = request.EndsWith("insight"), title = request.EndsWith("title");
                 if (request.StartsWith("build") && !request.StartsWith("build2"))
                 {
                     // Pick up changed scripts and files first; a recompile reloads this code, then "build2" continues.
-                    File.WriteAllText(RequestFile, insight ? "build2 insight" : "build2");
+                    File.WriteAllText(RequestFile, "build2" + request.Substring(5));
                     AssetDatabase.Refresh();
                     return;
                 }
@@ -48,6 +48,12 @@ namespace NasaHack.EditorTools
                 if (request.StartsWith("build2"))
                 {
                     if (EditorUtility.scriptCompilationFailed) { File.WriteAllText(DoneFile, "COMPILE FAILED"); return; }
+                    if (title)
+                    {
+                        TitleScreenBuilder.Build();
+                        File.WriteAllText(DoneFile, TitleScreenBuilder.Capture());
+                        return;
+                    }
                     Build(insight ? Mission.InSight : Mission.Opportunity);
                 }
                 string result = CapturePreviews();
@@ -161,7 +167,7 @@ namespace NasaHack.EditorTools
             }
         }
 
-        static void Shot(Camera cam, string name, Vector3 from, Vector3 lookAt, float fov)
+        internal static void Shot(Camera cam, string name, Vector3 from, Vector3 lookAt, float fov)
         {
             const int W = 1600, H = 900;
             cam.transform.position = from;

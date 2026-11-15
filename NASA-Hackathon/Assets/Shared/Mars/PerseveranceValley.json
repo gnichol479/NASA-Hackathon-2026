@@ -1,0 +1,9 @@
+{
+  "metersPerPixel": 1.5810132717775,
+  "minElevation": -1690.3565673828125,
+  "maxElevation": -1379.8697509765625,
+  "roverElevation": -1455.7845458984375,
+  "roverPixelX": 1024,
+  "roverPixelZ": 1023,
+  "skyRotation": 0.0
+}

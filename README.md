@@ -1,6 +1,6 @@
 # NASA Space Apps 2026: Abandoned but not Forgotten
 
-Team: Yayo, Gibson, Dominic, Susan
+Team: Yarden, Gibson, Dominic, Susan
 
 A VR experience in Unity for students aged 12-18. You arrive on Mars next to a rover NASA left behind, explore it, relive its mission in a flashback through its eyes, then come back to the present to learn why it matters.
 
@@ -24,8 +24,8 @@ Hey team, here's where we are.
 - Project setup: URP, OpenXR, XR Interaction Toolkit, glTFast + Draco (for NASA models), TextMeshPro
 - One shared XR Rig used in every scene. XR Device Simulator lets you test without a headset
 - All 5 Opportunity scenes exist, are in Build Settings, and are linked in order
-- **Arrival** (Yayo): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
-- **Legacy** (Yayo): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
+- **Arrival** (Yarden): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
+- **Legacy** (Yarden): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
 - **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
 - **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
 - **Flashback/Origin** (Gibson): rover assembly experience in the facility
@@ -35,7 +35,7 @@ Hey team, here's where we are.
 - Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
 - Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
-- Yayo: Arrival + Legacy
+- Yarden: Arrival + Legacy
 
 **Open decisions**
 - ~~Origin folder~~ Decided: Gibson's `Opportunity-Flashback` (in `NASA-Headquarters/LastSignalFlashback/`) is the Origin part. Arrival links to it and it's in Build Settings. The empty `Opportunity/Origin/` folder can be deleted
@@ -47,8 +47,10 @@ Hey team, here's where we are.
 ## Scene flow
 
 ```
-TitleScreen → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen
-                 (present)            (flashback)          (flashback)          (flashback)            (present)
+TitleScreen-Night ─ Opportunity → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen-Night
+ (mission choice)                    (present)            (flashback)          (flashback)          (flashback)            (present)
+                  ├ InSight     → InSight-Launch → TitleScreen-Night
+                  └ Ingenuity   → coming soon
 ```
 
 Every scene has a **Scene Flow** object already pointing to the next scene. When your part is done, call `Load()` on it. That's the only hook you need:
@@ -101,13 +103,34 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - **Lander on show:** the InSight lander model stands on a lit display beside the viewing deck with a sign, because in the real launch it is hidden inside the nose fairing
 - **Model:** `Assets/InSight/Models/InSight-Lander.glb` (imported at real size, about 6 m across)
 - **Rebuild:** **NasaHack > InSight > Build Atlas V Launch**. Code is in `Assets/Shared/Editor/DeltaIIBuilder.InSight.cs`
-- **Not in the chain yet:** the scene is not in Build Settings, and its Scene Flow points to `TitleScreen`. Open the scene and press Play to try it
+- **In the chain:** the InSight button on the title screen loads it, and it returns to the title screen when the launch ends
 - `DeltaIILaunch` now has the sign messages and liftoff acceleration as Inspector fields, so both launches share it. The Opportunity scene keeps its old values
 
 **InSight facts used in the scene.** Check these against a NASA page before showing them:
 - Launched May 5, 2018 at 4:05 a.m. PDT from Vandenberg Air Force Base, Space Launch Complex 3E, on an Atlas V 401
 - First launch to another planet from the U.S. West Coast. Thick fog hid the rocket from most people watching
 - Landed at Elysium Planitia on November 26, 2018. It listened for marsquakes and measured heat from inside Mars
+
+## Title screen with mission choice (Dominic)
+
+`Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
+
+- Dusk on Mars: a blue glow where the sun set, stars, Earth labelled in the sky, Opportunity in the middle distance, and "ABANDONED / BUT NOT FORGOTTEN" above the horizon
+- **Three mission cards**, each with its own button:
+
+| Card | Button loads | Keyboard |
+|---|---|---|
+| Opportunity | `Opportunity-Arrival` | **1** |
+| InSight | `InSight-Launch` | **2** |
+| Ingenuity | nothing yet: shows "Coming soon" | |
+
+- **Adding Ingenuity (or more InSight parts):** create a scene named `Ingenuity-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Launch`, else the first by name, and adds it to Build Settings
+- The builder is `Assets/Shared/Editor/TitleScreenBuilder.cs`. It rebuilds the whole scene, so hand edits to it are lost. Its assets are in `Assets/Shared/Title/`
+
+**Changes outside my own scenes, so everyone knows**
+- **Build Settings:** `TitleScreen-Night` added first, `InSight-Launch` added last
+- **`Opportunity-Legacy`:** the Scene Flow's Next Scene changed from `TitleScreen` to `TitleScreen-Night`, so "Return to Earth" goes back to the mission choice. That one line is the only change
+- `InSight-Launch` also returns to `TitleScreen-Night`
 
 ## Unity tip
 
@@ -189,6 +212,16 @@ Sources:
 - https://www.jpl.nasa.gov/news/nasas-opportunity-rover-mission-on-mars-comes-to-end/
 - https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/
 - 3D models: https://science.nasa.gov/3d-resources/
+
+## Data credits (must appear on the project page)
+
+The Mars environment in Title, Arrival and Legacy is built from real NASA data:
+
+- **Terrain:** HiRISE digital terrain model `DTEEC_018701_1775_018846_1775_U01` (1 m posts), cropped 3.2 km around Opportunity's final position (2.336 S, 354.651 E, Perseverance Valley). Credit: **NASA/JPL/University of Arizona/USGS**. https://www.uahirise.org/dtm/ESP_018701_1775
+- **Sky:** Opportunity's last 360-degree panorama, PIA22909 (true color), taken May 13 to June 10, 2018 from the same spot. Credit: **NASA/JPL-Caltech/Cornell/ASU**. https://www.jpl.nasa.gov/images/pia22909-opportunity-legacy-pan-true-color/
+- **Rover models:** NASA 3D Resources. https://science.nasa.gov/3d-resources/
+
+Rebuild the environment any time with **NasaHack > Build Mars Environment (Title, Arrival, Legacy)**. Source data and the generated heightmap live in `Assets/Shared/Mars/`. To turn the panorama so it lines up with the terrain, change **Rotation** on `Assets/Shared/Mars/Mars Sky (PIA22909).mat`.
 
 ## Known harmless errors
 
