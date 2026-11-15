@@ -23,7 +23,19 @@ public class LandingSequenceController : MonoBehaviour
     public Material legacyRockMaterial;
     public TerrainLayer legacySandLayer;
     XROrigin origin;
-    GameObject canopy, rock, berries;
+    GameObject canopy, missionRoot;
+    readonly GameObject[] studyRocks = new GameObject[3];
+    readonly GameObject[] clues = new GameObject[3];
+    readonly TextMeshPro[] rockLabels = new TextMeshPro[3];
+    readonly bool[] examined = new bool[3];
+    readonly string[] evidence = {
+        "Hematite-rich spheres: Opportunity found these mineral concretions, nicknamed blueberries. Their setting and chemistry support formation through ancient groundwater.",
+        "Jarosite detected: Opportunity's mineral instrument identified this iron sulfate in rock. Jarosite forms in the presence of water, supporting a wet past.",
+        "Red surface dust: color alone does not tell us whether liquid water was present. Scientists need mineral measurements and geological context."
+    };
+    bool scanning;
+    int examinedCount;
+    GameObject answerWater, answerLife;
     RectTransform panel;
     TextMeshProUGUI story;
     Vector3 site;
@@ -115,7 +127,9 @@ public class LandingSequenceController : MonoBehaviour
             yield return fader.Fade(0f, 0.25f);
         }
         panel.gameObject.SetActive(true);
-        rock.SetActive(true);
+        missionRoot.SetActive(true);
+        foreach (var label in rockLabels)
+            if (Camera.main != null) label.transform.rotation = Quaternion.LookRotation(label.transform.position - Camera.main.transform.position);
         if (Camera.main != null) UiFactory.FacePoint(panel, Camera.main.transform.position);
         ready = true;
     }
@@ -333,43 +347,147 @@ public class LandingSequenceController : MonoBehaviour
     {
         panel = UiFactory.CreatePanel("Landing Science Panel", transform, 1800f);
         panel.GetComponent<Canvas>().worldCamera = Camera.main;
-        panel.position = Surface(site + new Vector3(panelOffset.x, 0f, panelOffset.z))
-            + Vector3.up * panelOffset.y;
-        UiFactory.AddText(panel, "Title", "Opportunity: follow the water", 72f, FontStyles.Bold);
-        story = UiFactory.AddText(panel, "Story", "I landed on Mars in 2004 to study rocks and soil for clues about past water.\n\nYour mission: approach the rock beside this panel. Point your controller ray at it and select to brush away the dust.\n\nDesktop simulator: approach the rock and press E.", 48f, FontStyles.Normal);
-        var button = UiFactory.AddButton(panel, "Continue to Legacy", "Continue to Opportunity's legacy", out _);
-        button.gameObject.SetActive(false);
-        button.onClick.AddListener(() => { var flow = FindObjectOfType<LoadNextScene>(); if (flow != null) flow.Load(); });
-        rock = Shape("Investigate Water Evidence Rock", PrimitiveType.Sphere, transform, Vector3.zero,
-            new Vector3(1.1f, 0.65f, 0.85f), MakeMaterial(new Color(0.48f, 0.29f, 0.19f)), true);
-        rock.transform.position = Surface(site + new Vector3(2.2f, 0f, -3f)) + Vector3.up * 0.25f;
-        rock.AddComponent<XRSimpleInteractable>().selectEntered.AddListener(_ => Investigate());
-        berries = new GameObject("Hematite Spherules (enlarged for visibility)");
-        berries.transform.SetParent(rock.transform, false);
-        var hematite = MakeMaterial(new Color(0.19f, 0.17f, 0.16f));
-        for (int i = 0; i < 9; i++)
-            Shape("Hematite " + i, PrimitiveType.Sphere, berries.transform,
-                new Vector3((i % 3 - 1) * 0.15f, 0.43f, (i / 3 - 1) * 0.15f), Vector3.one * 0.075f, hematite);
-        berries.SetActive(false);
-        rock.SetActive(false);
+        panel.position = Surface(site + new Vector3(panelOffset.x, 0f, panelOffset.z)) + Vector3.up * panelOffset.y;
+        UiFactory.AddText(panel, "Title", "Did Mars once have liquid water?", 68f, FontStyles.Bold);
+        story = UiFactory.AddText(panel, "Story", "", 46f, FontStyles.Normal);
+        var water = UiFactory.AddButton(panel, "Water Conclusion", "Evidence of ancient liquid water", out _);
+        answerWater = water.gameObject;
+        water.onClick.AddListener(() => SubmitConclusion(true));
+        var life = UiFactory.AddButton(panel, "Life Conclusion", "Proof that living organisms were found", out _);
+        answerLife = life.gameObject;
+        life.onClick.AddListener(() => SubmitConclusion(false));
+        answerWater.SetActive(false);
+        answerLife.SetActive(false);
+        var next = UiFactory.AddButton(panel, "Continue to Legacy", "Continue to Opportunity's legacy", out _);
+        next.gameObject.SetActive(false);
+        next.onClick.AddListener(ContinueToLegacy);
+        missionRoot = new GameObject("Past Water Investigation");
+        missionRoot.transform.SetParent(transform, false);
+        var offsets = new[] { new Vector3(2.2f,0f,-3f), new Vector3(-2.2f,0f,-2f), new Vector3(3.5f,0f,1f) };
+        var stone = legacyRockMaterial != null ? legacyRockMaterial : MakeMaterial(new Color(0.48f,0.29f,0.19f));
+        var mineral = MakeMaterial(new Color(0.19f,0.17f,0.16f));
+        for (int i = 0; i < studyRocks.Length; i++)
+        {
+            int index = i;
+            var target = Shape("Water Investigation Rock " + (i+1), PrimitiveType.Sphere, missionRoot.transform,
+                Vector3.zero, new Vector3(1.1f,0.65f,0.85f), stone, true);
+            target.transform.position = Surface(site + offsets[i]) + Vector3.up * 0.25f;
+            studyRocks[i] = target;
+            target.AddComponent<XRSimpleInteractable>().selectEntered.AddListener(_ => ScanRock(index));
+            var label = new GameObject("Sample " + (i+1) + " Label").AddComponent<TextMeshPro>();
+            label.transform.SetParent(missionRoot.transform, false);
+            label.transform.position = target.transform.position + Vector3.up * 0.95f;
+            label.text = "SAMPLE " + (i+1) + "\nSelect to investigate";
+            label.fontSize = 2.5f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.rectTransform.sizeDelta = new Vector2(1.6f,0.5f);
+            label.color = new Color(1f,0.8f,0.4f);
+            rockLabels[i] = label;
+            clues[i] = new GameObject("Sample " + (i+1) + " Results");
+            clues[i].transform.SetParent(target.transform, false);
+            if (i == 0)
+                for (int j = 0; j < 9; j++)
+                    Shape("Hematite (enlarged)", PrimitiveType.Sphere, clues[i].transform,
+                        new Vector3((j%3-1)*0.15f,0.43f,(j/3-1)*0.15f), Vector3.one*0.075f, mineral);
+            // Mineral identity comes from the simulated instrument readout, not a visual color guess.
+            clues[i].SetActive(false);
+        }
+        RefreshMission();
+        missionRoot.SetActive(false);
         panel.gameObject.SetActive(false);
     }
 
+    void RefreshMission(string feedback = "")
+    {
+        string notes = "";
+        for (int i = 0; i < examined.Length; i++)
+            if (examined[i]) notes += "\n\nSample " + (i+1) + ": " + evidence[i];
+        string instruction = examinedCount < 3
+            ? "Approach each numbered rock and select it with the controller ray. Desktop: approach and press E.\nSimplified instrument readings inspired by Opportunity's discoveries."
+            : "What do these clues support? Choose below. Desktop: 1 = ancient water; 2 = life found.";
+        story.text = "Samples investigated: " + examinedCount + "/3\n" + instruction + notes + feedback;
+        answerWater.SetActive(examinedCount == 3 && !discovered);
+        answerLife.SetActive(examinedCount == 3 && !discovered);
+    }
+
+    // Desktop accessibility: E investigates the closest sample, within the same range as XR.
     public void Investigate()
     {
-        if (!ready || discovered || Camera.main == null || Vector3.Distance(Camera.main.transform.position, rock.transform.position) > 3f) return;
+        if (!ready || scanning || discovered || Camera.main == null) return;
+        int closest = -1;
+        float distance = 3f;
+        for (int i = 0; i < studyRocks.Length; i++)
+        {
+            float d = Vector3.Distance(Camera.main.transform.position, studyRocks[i].transform.position);
+            if (d < distance) { closest = i; distance = d; }
+        }
+        if (closest >= 0) ScanRock(closest);
+        else RefreshMission("\n\nMove within 3 metres of a numbered sample to investigate it.");
+    }
+
+    void ScanRock(int index)
+    {
+        if (!ready || scanning || discovered || Camera.main == null) return;
+        if (Vector3.Distance(Camera.main.transform.position, studyRocks[index].transform.position) > 3f)
+        { RefreshMission("\n\nMove closer to Sample " + (index+1) + "."); return; }
+        if (examined[index]) { RefreshMission("\n\nSample already recorded. Investigate the remaining samples."); return; }
+        StartCoroutine(ReadSample(index));
+    }
+
+    IEnumerator ReadSample(int index)
+    {
+        scanning = true;
+        float duration = 1.2f;
+        for (float t = 0f; t < duration; t += Time.deltaTime)
+        {
+            rockLabels[index].text = "SAMPLE " + (index+1) + "\nInvestigating " + Mathf.RoundToInt(t/duration*100f) + "%";
+            yield return null;
+        }
+        examined[index] = true;
+        examinedCount++;
+        clues[index].SetActive(true);
+        rockLabels[index].text = "SAMPLE " + (index+1) + "\nRecorded";
+        rockLabels[index].color = new Color(0.65f,1f,0.75f);
+        scanning = false;
+        RefreshMission();
+    }
+
+    public void SubmitConclusion(bool ancientWater)
+    {
+        if (!ready || discovered || examinedCount != 3) return;
+        if (!ancientWater)
+        {
+            RefreshMission("\n\nTry again: these rocks tell us about water and geology. Opportunity did not discover living organisms.");
+            return;
+        }
         discovered = true;
-        berries.SetActive(true);
-        story.text = "Discovery complete! These enlarged dots represent hematite-rich 'blueberries': tiny mineral spheres. Opportunity's study of these spheres and surrounding rocks revealed evidence of ancient groundwater. This is evidence of water, not proof of life.\n\nOpportunity worked from 2004 to 2018, far beyond its planned 90-sol mission. Contact was lost during a huge dust storm; NASA ended the mission in 2019. Its discoveries still help us explore Mars.";
+        answerWater.SetActive(false);
+        answerLife.SetActive(false);
+        story.text = "Mission complete: evidence of ancient liquid water!\n\nHematite concretions and jarosite, together with their geological setting, helped scientists reconstruct a wet past at Meridiani Planum. Red color alone would not establish this.\n\nThese are simplified examples of real discoveries, not live mineral measurements. Hematite spheres are enlarged for visibility. Evidence of water is not proof of life.\n\nOpportunity operated from 2004 to 2018, far beyond its planned 90-sol mission. Contact was lost during a dust storm; NASA ended the mission in 2019.\n\nContinue to its legacy. Desktop: Enter.";
         panel.Find("Continue to Legacy").gameObject.SetActive(true);
+    }
+
+    void ContinueToLegacy()
+    {
+        if (!discovered) return;
+        var flow = FindObjectOfType<LoadNextScene>();
+        if (flow != null) flow.Load();
     }
 
     void Update()
     {
 #if ENABLE_INPUT_SYSTEM
-        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame) Investigate();
+        var keyboard = UnityEngine.InputSystem.Keyboard.current;
+        if (keyboard == null) return;
+        if (keyboard.eKey.wasPressedThisFrame) Investigate();
+        if (keyboard.digit1Key.wasPressedThisFrame) SubmitConclusion(true);
+        if (keyboard.digit2Key.wasPressedThisFrame) SubmitConclusion(false);
+        if (keyboard.enterKey.wasPressedThisFrame) ContinueToLegacy();
 #elif ENABLE_LEGACY_INPUT_MANAGER
         if (Input.GetKeyDown(KeyCode.E)) Investigate();
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SubmitConclusion(true);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SubmitConclusion(false);
+        if (Input.GetKeyDown(KeyCode.Return)) ContinueToLegacy();
 #endif
     }
 
@@ -378,3 +496,4 @@ public class LandingSequenceController : MonoBehaviour
         foreach (var asset in assets) if (asset != null) Destroy(asset);
     }
 }
+
