@@ -1,6 +1,6 @@
 # NASA Space Apps 2026: Abandoned but not Forgotten
 
-Team: Yayo, Gibson, Dominic, Susan
+Team: Yarden, Gibson, Dominic, Susan
 
 A VR experience in Unity for students aged 12-18. You arrive on Mars next to a rover NASA left behind, explore it, relive its mission in a flashback through its eyes, then come back to the present to learn why it matters.
 
@@ -24,8 +24,8 @@ Hey team, here's where we are.
 - Project setup: URP, OpenXR, XR Interaction Toolkit, glTFast + Draco (for NASA models), TextMeshPro
 - One shared XR Rig used in every scene. XR Device Simulator lets you test without a headset
 - All 5 Opportunity scenes exist, are in Build Settings, and are linked in order
-- **Arrival** (Yayo): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
-- **Legacy** (Yayo): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
+- **Arrival** (Yarden): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
+- **Legacy** (Yarden): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
 - **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
 - **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
 - **Flashback/Origin** (Gibson): rover assembly experience in the facility
@@ -35,7 +35,7 @@ Hey team, here's where we are.
 - Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
 - Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
-- Yayo: Arrival + Legacy
+- Yarden: Arrival + Legacy
 
 **Open decisions**
 - ~~Origin folder~~ Decided: Gibson's `Opportunity-Flashback` (in `NASA-Headquarters/LastSignalFlashback/`) is the Origin part. Arrival links to it and it's in Build Settings. The empty `Opportunity/Origin/` folder can be deleted
@@ -113,7 +113,7 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 
 ## Title screen with mission choice (Dominic)
 
-`Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yayo's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
+`Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
 
 - Dusk on Mars: a blue glow where the sun set, stars, Earth labelled in the sky, Opportunity in the middle distance, and "ABANDONED / BUT NOT FORGOTTEN" above the horizon
 - **Three mission cards**, each with its own button:
