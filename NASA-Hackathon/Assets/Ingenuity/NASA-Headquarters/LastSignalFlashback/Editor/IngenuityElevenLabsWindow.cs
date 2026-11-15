@@ -67,6 +67,9 @@ namespace LastSignal.IngenuityFlashback.EditorTools
             EditorGUILayout.HelpBox(
                 "Generate clips in the Editor and assign them to this scene. The API key stays in this window's memory and is never saved with the project. Generation sends the selected caption text to ElevenLabs.",
                 MessageType.Info);
+            EditorGUILayout.HelpBox(
+                "This window generates the five flashback clips only. For the complete Ingenuity scenario, use Last Signal > Ingenuity > ElevenLabs Brian - Flashback + Launch to include the seven launch clips too.",
+                MessageType.None);
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
@@ -284,7 +287,9 @@ namespace LastSignal.IngenuityFlashback.EditorTools
                     if (importer != null)
                     {
                         importer.forceToMono = true;
+                        importer.loadInBackground = false;
                         AudioImporterSampleSettings settings = importer.defaultSampleSettings;
+                        settings.preloadAudioData = true;
                         settings.loadType = AudioClipLoadType.DecompressOnLoad;
                         settings.compressionFormat = AudioCompressionFormat.Vorbis;
                         settings.quality = 1f;

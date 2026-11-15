@@ -76,6 +76,9 @@ namespace NasaHack
         float velocity;
         float flightTime;
         bool flying;
+        bool flightStarted;
+        bool countdownSkipRequested;
+        bool sceneHandoffStarted;
         float ignitionTime = -1f;
         Quaternion padRotation;
         AudioSource narrationSource;
@@ -103,6 +106,9 @@ namespace NasaHack
                     briefingNarrationText = "NASA's Mars Exploration Rover-B, Opportunity, launched aboard a Delta II 7925H from Cape Canaveral Air Force Station on July 7, 2003, at 11:18 p.m. Eastern Daylight Time. Its mission was to investigate evidence of past water on Mars. Press the red launch button when you are ready. This is a shortened educational reenactment.";
                 else if (idleMessage.IndexOf("INSIGHT", System.StringComparison.OrdinalIgnoreCase) >= 0)
                     briefingNarrationText = "NASA's InSight lander launched aboard an Atlas V 401 from Vandenberg Air Force Base in California on May 5, 2018. The launch window opened at 4:05 a.m. Pacific Daylight Time. InSight was sent to study the deep interior of Mars. Press the red launch button when you are ready. This is a shortened educational reenactment.";
+                else if (idleMessage.IndexOf("INGENUITY", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         idleMessage.IndexOf("PERSEVERANCE", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    briefingNarrationText = "NASA's Perseverance rover and Ingenuity helicopter launched together aboard an Atlas V 541 from Cape Canaveral on July 30, 2020. Ingenuity was a technology demonstration designed to test powered, controlled flight on Mars. The mission reached Jezero Crater on February 18, 2021. Press the launch button when you are ready. This is a shortened educational reenactment.";
                 else
                     briefingNarrationText = idleMessage;
             }
@@ -118,18 +124,37 @@ namespace NasaHack
             if (string.IsNullOrWhiteSpace(cruiseNarrationText)) cruiseNarrationText = cruiseMessage;
         }
 
-#if ENABLE_LEGACY_INPUT_MANAGER
         void Update()
         {
-            // Desktop testing without a headset.
-            if (Input.GetKeyDown(KeyCode.L)) BeginLaunch();
+            // In the desktop demo, the first keyboard press skips the countdown and the next
+            // press hands off to the next scene. Controller interaction still uses the launch UI.
+            if (!DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame()) return;
+
+            if (!Launched)
+            {
+                BeginLaunch(skipCountdown: true);
+                return;
+            }
+
+            if (!flightStarted)
+            {
+                countdownSkipRequested = true;
+                return;
+            }
+
+            SkipToNextScene();
         }
-#endif
 
         public void BeginLaunch()
         {
+            BeginLaunch(skipCountdown: false);
+        }
+
+        void BeginLaunch(bool skipCountdown)
+        {
             if (Launched) return;
             Launched = true;
+            countdownSkipRequested = skipCountdown;
             // A climbing rocket gets far away fast; don't let the camera clip it.
             if (Camera.main) Camera.main.farClipPlane = Mathf.Max(Camera.main.farClipPlane, 30000f);
             StartCoroutine(Sequence());
@@ -138,7 +163,7 @@ namespace NasaHack
         IEnumerator Sequence()
         {
             // ---- Countdown
-            for (int t = countdownSeconds; t > 0; t--)
+            for (int t = countdownSeconds; t > 0 && !countdownSkipRequested; t--)
             {
                 SetClock("T-" + t.ToString("00"));
                 if (t == countdownSeconds)
@@ -158,8 +183,16 @@ namespace NasaHack
                     ignitionTime = Time.time;
                     if (rumble) rumble.target = 0.35f;
                 }
-                yield return new WaitForSeconds(1f);
+                float elapsed = 0f;
+                while (elapsed < 1f && !countdownSkipRequested)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
             }
+
+            if (countdownSkipRequested)
+                SetStatus("Countdown skipped for the demo.");
 
             // ---- Liftoff
             SetClock("T+00");
@@ -170,6 +203,7 @@ namespace NasaHack
             if (padSmoke) padSmoke.Play();
             if (rumble) rumble.target = 1f;
             flying = true;
+            flightStarted = true;
 
             float next = 1f;
             bool pitched = false, jettisoned = false, cruising = false;
@@ -205,7 +239,27 @@ namespace NasaHack
             if (rumble) rumble.target = 0f;
             // The educational flight is compressed, but the final explanation must finish.
             while (narrationSource != null && narrationSource.isPlaying) yield return null;
-            if (sceneFlow) sceneFlow.Load();
+            if (!sceneHandoffStarted && sceneFlow)
+            {
+                sceneHandoffStarted = true;
+                sceneFlow.Load();
+            }
+        }
+
+        void SkipToNextScene()
+        {
+            if (sceneHandoffStarted) return;
+            if (sceneFlow == null)
+            {
+                Debug.LogError("DeltaIILaunch: assign the next-scene handoff before using the demo skip.", this);
+                return;
+            }
+
+            sceneHandoffStarted = true;
+            StopAllCoroutines();
+            flying = false;
+            if (rumble) rumble.target = 0f;
+            sceneFlow.Load();
         }
 
         void LateUpdate()

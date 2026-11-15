@@ -1,4 +1,4 @@
-> **Ingenuity version.** Rebuilt from the InSight room (itself from Gibson's Opportunity flashback) to assemble the Ingenuity helicopter: rotor blades, solar panel and landing legs from `Assets/Ingenuity/Models/Ingenuity-Helicopter.glb`. Classes, namespace (`LastSignal.IngenuityFlashback`) and menus (**Last Signal > Ingenuity Flashback**) are renamed. Ready for Launch loads `Ingenuity-Launch`. No narration MP3s yet. The text below is the original Opportunity documentation.
+> **Ingenuity version.** Rebuilt from the InSight room (itself from Gibson's Opportunity flashback) to assemble the Ingenuity helicopter: rotor blades, solar panel and landing legs from `Assets/Ingenuity/Models/Ingenuity-Helicopter.glb`. Classes, namespace (`LastSignal.IngenuityFlashback`) and menus (**Last Signal > Ingenuity Flashback**) are renamed. Ready for Launch loads `Ingenuity-Launch`. The scene has matching captions and assignable narration fields, but generated MP3s are not included yet. The text below is the original Opportunity documentation.
 
 # Opportunity Flashback
 
@@ -24,7 +24,9 @@ The educational captions are short and factual:
 | Instrument arm | “The instrument arm placed science tools against rocks so Opportunity could examine their texture and chemistry.” |
 | Systems check | “Power, vision, and science tools are accounted for. Opportunity is ready for launch.” |
 
-The caption script and assignable audio slots are on the scene controller. Use **Last Signal → Opportunity Flashback → Narration → ElevenLabs Brian** to generate the current five lines with voice ID `nPczcJzI2devNBz1zQrb`, assign the imported MP3 clips, and preview each line in the Editor. The API key is entered into a password field, kept in window memory only, and sent only when you choose Generate. Generated audio is saved under `Audio/ElevenLabsBrian`; captions and narration read the same editable text fields, so later script revisions stay aligned when regenerated. A short generated chime provides immediate snap feedback when no custom snap clip is assigned.
+Captions and assignable `AudioClip` slots are on the scene controller. The intro plays on entry; each part narration plays when its matching component snaps into place; the systems-check narration plays on completion. The words shown on screen and sent for narration come from the same editable caption fields. A short generated chime provides immediate snap feedback when no custom snap clip is assigned.
+
+For the Ingenuity flashback **and** launch narration, use **Last Signal → Ingenuity → ElevenLabs Brian - Flashback + Launch**. This focused Editor batch generates the five flashback clips and seven launch clips, then imports, assigns, and preloads them. Its text is based on the same captions shown in the scenes; the launch briefing includes the joint Perseverance/Ingenuity launch and Ingenuity's Mars flight-demonstration purpose. The batch is capped at 1,800 characters to fit the project's limited TTS key. Enter the secret in the password field; it is held in window memory only. Generated MP3s are saved under `Assets/Shared/Audio/Narration/Ingenuity-Flashback` and `Ingenuity-Launch`. No voice files are generated until this Editor action is run with a valid key and network access.
 
 ## Hookup
 

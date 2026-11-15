@@ -23,6 +23,7 @@ namespace NasaHack.EditorTools
     {
         const string VoiceId = "nPczCjzI2devNBz1zQrb";
         const string OutputRoot = "Assets/Shared/Audio/Narration";
+        const int IngenuityCharacterBudget = 1800;
 
         string apiKey = string.Empty;
         string activeKey = string.Empty;
@@ -42,11 +43,22 @@ namespace NasaHack.EditorTools
         int charactersThisRun;
         int sceneGenerated;
         int sceneTotal;
+        bool ingenuityOnly;
 
         [MenuItem("Last Signal/Narration/ElevenLabs Brian - All Scenes")]
         public static void Open()
         {
             SceneNarrationGeneratorWindow window = GetWindow<SceneNarrationGeneratorWindow>("Brian Narration");
+            window.ingenuityOnly = false;
+            window.minSize = new Vector2(500f, 360f);
+        }
+
+        [MenuItem("Last Signal/Ingenuity/ElevenLabs Brian - Flashback + Launch")]
+        public static void OpenIngenuityBatch()
+        {
+            SceneNarrationGeneratorWindow window = GetWindow<SceneNarrationGeneratorWindow>("Ingenuity Narration");
+            window.ingenuityOnly = true;
+            window.maxCharactersPerRun = IngenuityCharacterBudget;
             window.minSize = new Vector2(500f, 360f);
         }
 
@@ -68,7 +80,9 @@ namespace NasaHack.EditorTools
             EditorGUILayout.LabelField("ElevenLabs · Brian", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Voice ID: " + VoiceId, EditorStyles.miniLabel);
             EditorGUILayout.HelpBox(
-                "Creates offline, assignable voice clips for the authored story panels, mission cards, rover hotspots, landing discoveries, and launch milestones. The API key is kept only in this window's memory. Each generated caption is sent to ElevenLabs; no live API call is made in the game.",
+                ingenuityOnly
+                    ? "Generates the missing Brian narration for Ingenuity's flashback and launch scenes only. Clips are imported and assigned to the scene slots; the API key stays in this window's memory and is never saved to the project."
+                    : "Creates offline, assignable voice clips for the authored story panels, mission cards, rover hotspots, landing discoveries, and launch milestones. The API key is kept only in this window's memory. Each generated caption is sent to ElevenLabs; no live API call is made in the game.",
                 MessageType.Info);
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
@@ -81,12 +95,15 @@ namespace NasaHack.EditorTools
             {
                 apiKey = EditorGUILayout.PasswordField("ElevenLabs API key", apiKey);
                 maxCharactersPerRun = EditorGUILayout.IntField("Character budget this run", maxCharactersPerRun);
-                maxCharactersPerRun = Mathf.Clamp(maxCharactersPerRun, 100, 100000);
+                maxCharactersPerRun = Mathf.Clamp(maxCharactersPerRun, 100,
+                    ingenuityOnly ? IngenuityCharacterBudget : 100000);
                 EditorGUILayout.HelpBox("Set this budget within your available ElevenLabs credits and key limit. Assigned clips are skipped. If a run stops, completed clips stay assigned and the next run resumes the missing lines.", MessageType.None);
                 EditorGUILayout.Space(8);
                 using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(apiKey)))
                 {
-                    if (GUILayout.Button("Generate missing narration for all scenes", GUILayout.Height(34)))
+                    if (GUILayout.Button(ingenuityOnly
+                        ? "Generate missing Ingenuity flashback + launch clips"
+                        : "Generate missing narration for all scenes", GUILayout.Height(34)))
                         BeginBatch();
                 }
             }
@@ -112,17 +129,31 @@ namespace NasaHack.EditorTools
                 .Where(path => path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
                 .Where(path => !path.Contains("/Samples/") && !path.Contains("/DemoScene.unity"))
                 .ToList();
-            const string opportunityLaunchScene = "Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity";
-            if (foundScenes.Contains(opportunityLaunchScene)) scenePaths.Add(opportunityLaunchScene);
-            scenePaths.AddRange(EditorBuildSettings.scenes
-                .Where(scene => scene.enabled && scene.path != opportunityLaunchScene && foundScenes.Contains(scene.path))
-                .Select(scene => scene.path));
-            scenePaths.AddRange(foundScenes.Except(scenePaths)
-                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            if (ingenuityOnly)
+            {
+                string[] ingenuityScenes =
+                {
+                    "Assets/Ingenuity/NASA-Headquarters/LastSignalFlashback/Scenes/Ingenuity-Flashback.unity",
+                    "Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity"
+                };
+                scenePaths.AddRange(ingenuityScenes.Where(foundScenes.Contains));
+            }
+            else
+            {
+                const string opportunityLaunchScene = "Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity";
+                if (foundScenes.Contains(opportunityLaunchScene)) scenePaths.Add(opportunityLaunchScene);
+                scenePaths.AddRange(EditorBuildSettings.scenes
+                    .Where(scene => scene.enabled && scene.path != opportunityLaunchScene && foundScenes.Contains(scene.path))
+                    .Select(scene => scene.path));
+                scenePaths.AddRange(foundScenes.Except(scenePaths)
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            }
 
             if (scenePaths.Count == 0)
             {
-                status = "No project scenes were found.";
+                status = ingenuityOnly
+                    ? "The Ingenuity flashback and launch scenes could not be found."
+                    : "No project scenes were found.";
                 Repaint();
                 return;
             }
@@ -132,7 +163,7 @@ namespace NasaHack.EditorTools
             sceneIndex = 0;
             totalGenerated = totalSkipped = totalFailed = 0;
             charactersThisRun = 0;
-            status = "Preparing " + scenePaths.Count + " scenes…";
+            status = "Preparing " + (ingenuityOnly ? "Ingenuity's flashback and launch scenes" : scenePaths.Count + " scenes") + "…";
             OpenNextScene();
         }
 
@@ -303,7 +334,9 @@ namespace NasaHack.EditorTools
 
                 foreach (Component component in root.GetComponentsInChildren<Component>(true))
                 {
-                    if (component == null || component.GetType().Name != "OpportunityFlashbackSceneController") continue;
+                    if (component == null ||
+                        (component.GetType().Name != "OpportunityFlashbackSceneController" &&
+                         component.GetType().Name != "IngenuityFlashbackSceneController")) continue;
                     CollectFlashbackCues(component, sceneName);
                 }
             }
@@ -459,7 +492,9 @@ namespace NasaHack.EditorTools
                     if (importer != null)
                     {
                         importer.forceToMono = true;
+                        importer.loadInBackground = false;
                         AudioImporterSampleSettings settings = importer.defaultSampleSettings;
+                        settings.preloadAudioData = true;
                         settings.loadType = AudioClipLoadType.DecompressOnLoad;
                         settings.compressionFormat = AudioCompressionFormat.Vorbis;
                         settings.quality = 1f;

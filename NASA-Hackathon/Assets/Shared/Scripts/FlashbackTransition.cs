@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 
 namespace NasaHack
 {
-    // The "memory" look: warm, faded color, vignette, color fringing, glow.
+    // The "memory" look: warm, faded color, subtle color fringing and glow.
     //   Present scene (Arrival): call Play() to dive into the flashback, then it loads the next scene.
     //   Flashback scenes (Origin, Launch, Landing): Start Mode = In Flashback keeps the look on.
     //   Back in the present (Legacy): Start Mode = Returning fades the look out.
@@ -85,8 +85,8 @@ namespace NasaHack
             color.postExposure.Override(0.3f);
 
             var vignette = profile.Add<Vignette>();
-            vignette.intensity.Override(0.5f);
-            vignette.smoothness.Override(0.6f);
+            vignette.intensity.Override(0f);
+            vignette.active = false;
 
             profile.Add<ChromaticAberration>().intensity.Override(0.6f);
 

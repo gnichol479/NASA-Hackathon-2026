@@ -23,7 +23,9 @@ Factual narration is grounded in NASA or NASA/JPL material. The project uses sho
 
 ## Ingenuity
 
-- [NASA Science: Ingenuity Mars Helicopter](https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/) — first powered, controlled flight on another planet and flight dates.
+- [NASA Science: Ingenuity Mars Helicopter](https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/) — Ingenuity's technology-demonstration purpose, Mars flights, and first powered, controlled flight on another planet.
+- [NASA: United Launch Alliance Atlas V Rocket Launches with NASA's Mars Perseverance Rover](https://www.nasa.gov/image-article/united-launch-alliance-atlas-v-rocket-launches-with-nasas-mars-perseverance-rover/) — joint Perseverance and Ingenuity launch on Atlas V 541 from Cape Canaveral on July 30, 2020.
+- [NASA: NASA, ULA Launch Mars 2020 Perseverance Rover Mission to Red Planet](https://www.nasa.gov/news-release/nasa-ula-launch-mars-2020-perseverance-rover-mission-to-red-planet/) — launch time and mission context.
 
 ## Scope note
 

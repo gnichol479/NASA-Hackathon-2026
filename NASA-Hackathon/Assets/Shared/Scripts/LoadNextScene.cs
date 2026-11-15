@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,12 +19,19 @@ namespace NasaHack
         [Tooltip("Load automatically after this many seconds. 0 = only when Load() is called.")]
         public float autoLoadAfter = 0f;
 
-        [Tooltip("Desktop testing shortcut. Press in Play mode to skip to the next scene.")]
+        [Tooltip("Legacy desktop shortcut. Any keyboard key also skips scenes with one unambiguous next destination.")]
         public KeyCode debugKey = KeyCode.N;
 
         static bool fadeInPending;
         static float fadeInSeconds;
+        static int lastKeyboardSkipFrame = -1;
         bool loading;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetKeyboardSkip()
+        {
+            lastKeyboardSkipFrame = -1;
+        }
 
         void Start()
         {
@@ -32,9 +41,49 @@ namespace NasaHack
 #if ENABLE_LEGACY_INPUT_MANAGER
         void Update()
         {
-            if (Input.GetKeyDown(debugKey)) Load();
+            if (Input.GetKeyDown(debugKey) && FindObjectOfType<DeltaIILaunch>() == null)
+            {
+                if (lastKeyboardSkipFrame == Time.frameCount) return;
+                lastKeyboardSkipFrame = Time.frameCount;
+                Load();
+                return;
+            }
+
+            if (!DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame() ||
+                lastKeyboardSkipFrame == Time.frameCount ||
+                FindObjectOfType<DeltaIILaunch>() != null)
+                return;
+
+            lastKeyboardSkipFrame = Time.frameCount;
+            LoadSingleDestinationForDemo();
+        }
+#elif ENABLE_INPUT_SYSTEM
+        void Update()
+        {
+            if (!DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame() ||
+                lastKeyboardSkipFrame == Time.frameCount ||
+                FindObjectOfType<DeltaIILaunch>() != null)
+                return;
+
+            lastKeyboardSkipFrame = Time.frameCount;
+            LoadSingleDestinationForDemo();
         }
 #endif
+
+        static void LoadSingleDestinationForDemo()
+        {
+            LoadNextScene[] flows = FindObjectsOfType<LoadNextScene>();
+            var destinations = new HashSet<string>(
+                flows.Where(flow => flow != null && !string.IsNullOrWhiteSpace(flow.nextScene))
+                    .Select(flow => flow.nextScene));
+
+            // Menus with several valid destinations remain controlled by their own buttons.
+            if (destinations.Count != 1) return;
+
+            string target = destinations.First();
+            LoadNextScene flow = flows.FirstOrDefault(candidate => candidate != null && candidate.nextScene == target);
+            if (flow != null) flow.Load();
+        }
 
         public void Load()
         {
