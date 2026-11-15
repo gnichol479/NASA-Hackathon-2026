@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7231936887460256596
+--- !u!114 &-4899905995445327050
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -41,10 +41,10 @@ MonoBehaviour:
   m_Name: Title Post Processing
   m_EditorClassIdentifier: 
   components:
-  - {fileID: 2139806683093675968}
-  - {fileID: 5456657589560882795}
-  - {fileID: -7231936887460256596}
---- !u!114 &2139806683093675968
+  - {fileID: 7902913378560309440}
+  - {fileID: 8699694106809885912}
+  - {fileID: -4899905995445327050}
+--- !u!114 &7902913378560309440
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -91,7 +91,7 @@ MonoBehaviour:
   dirtIntensity:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &5456657589560882795
+--- !u!114 &8699694106809885912
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}

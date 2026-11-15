@@ -29,6 +29,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/InSight/Launch/Scenes/InSight-Launch.unity
     guid: c48d3f544159a5043b4e56f9456b19af
+  - enabled: 1
+    path: Assets/InSight/NASA-Headquarters/LastSignalFlashback/Scenes/InSight-Flashback.unity
+    guid: 8af18a75831febb3c70393a2a8e18b29
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11869147fc86e06a692ec91f4e4f958a, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: ec8c2195195c8f3e5b71021be2501364, type: 2}
