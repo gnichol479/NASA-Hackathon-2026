@@ -213,6 +213,10 @@ Sources:
 - https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/
 - 3D models: https://science.nasa.gov/3d-resources/
 
+## Textures and rocks: Mars Landscape 3D (free Asset Store pack)
+
+Not in git (store license). Each person imports it once: open https://assetstore.unity.com/packages/3d/environments/landscapes/mars-landscape-3d-175814, sign in, **Add to My Assets**; in Unity **Window > Package Manager > My Assets > Mars Landscape 3D > Download > Import**. Then **NasaHack > Mars Environment > NASA terrain + Mars Landscape 3D textures and rocks**. Without it the builder falls back to generated textures. Credit: Evgenii Nikolskii.
+
 ## Data credits (must appear on the project page)
 
 The Mars environment in Title, Arrival and Legacy is built from real NASA data:
