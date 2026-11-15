@@ -51,7 +51,7 @@ Hey team, here's where we are.
 TitleScreen-Night ─ Opportunity → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen-Night
  (mission choice)                    (present)            (flashback)          (flashback)          (flashback)            (present)
                   ├ InSight     → InSight-Flashback → InSight-Launch → TitleScreen-Night
-                  └ Ingenuity   → coming soon
+                  └ Ingenuity   → Ingenuity-Flashback → Ingenuity-Launch → TitleScreen-Night
 ```
 
 Every scene has a **Scene Flow** object already pointing to the next scene. When your part is done, call `Load()` on it. That's the only hook you need:
@@ -147,6 +147,27 @@ The activity uses scripted educational readings and illustrative rover motion. T
 - **Narration:** captions are InSight's, but there is no voice-over yet (Gibson's MP3s were Opportunity's lines). Generate it with **Last Signal > InSight Flashback > Narration > ElevenLabs Brian** (needs an ElevenLabs API key)
 - The title screen's InSight button starts here, and it is in Build Settings
 
+## Ingenuity path (Dominic)
+
+Built the same way as InSight's: an assembly room, then a launch, then back to the title screen.
+
+**Assembly room:** `Assets/Ingenuity/NASA-Headquarters/`, scene `Ingenuity-Flashback.unity`
+- Gibson's clean room again, this time for the **Ingenuity helicopter**. Parts: **01 rotor blades** (both rotors and their hubs), **02 solar panel**, **03 landing legs**, from `Assets/Ingenuity/Models/Ingenuity-Helicopter.glb`
+- The helicopter is at real size (rotors 1.2 m across), so it is small on the podium. Its body rests on a small work stand until the legs are fitted
+- Classes are `IngenuityX`, namespace `LastSignal.IngenuityFlashback`, tools under **Last Signal > Ingenuity Flashback**. **Verify Assembly Flow** passes
+- Captions only, no voice-over yet (same as InSight)
+
+**Launch:** `Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity`
+- An **Atlas V 541** at real size: bronze booster, four white solid rocket boosters that drop away in flight, and the wide 5-m nose fairing
+- A **daytime** launch at Cape Canaveral, reusing the Cape surroundings from the Opportunity launch with the daytime sky
+- The helicopter model stands on a pedestal beside the viewing deck, with a sign
+- **Rebuild:** **NasaHack > Ingenuity > Build Atlas V Launch**
+
+**Ingenuity facts used.** Check these against a NASA page before showing them:
+- Launched with the Perseverance rover on July 30, 2020 at 7:50 a.m. EDT from Cape Canaveral, Space Launch Complex 41, on an Atlas V 541. It rode folded up under the rover
+- Landed with Perseverance in Jezero Crater on February 18, 2021. First flight: April 19, 2021
+- Two rotors 1.2 m across, spinning in opposite directions at about 2,400 turns a minute. A solar panel charges its batteries
+
 ## Title screen with mission choice (Dominic)
 
 `Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
@@ -158,9 +179,9 @@ The activity uses scripted educational readings and illustrative rover motion. T
 |---|---|---|
 | Opportunity | `Opportunity-Arrival` | **1** |
 | InSight | `InSight-Flashback` (assembly room), then `InSight-Launch` | **2** |
-| Ingenuity | nothing yet: shows "Coming soon" | |
+| Ingenuity | `Ingenuity-Flashback` (assembly room), then `Ingenuity-Launch` | **3** |
 
-- **Adding Ingenuity (or more InSight parts):** create a scene named `Ingenuity-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
+- **Adding more parts to a mission:** create a scene named `<Mission>-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
 - The builder is `Assets/Shared/Editor/TitleScreenBuilder.cs`. It rebuilds the whole scene, so hand edits to it are lost. Its assets are in `Assets/Shared/Title/`
 
 **Changes outside my own scenes, so everyone knows**

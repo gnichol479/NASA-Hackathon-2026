@@ -11,7 +11,7 @@ namespace NasaHack.EditorTools
     //
     //   NasaHack > Opportunity > Capture Launch Previews   ->  Library/LaunchPreview/*.png
     //
-    // It also watches for Library/LaunchPreview/request ("capture", "build", "build insight" or "build title"), so a rebuild and
+    // It also watches for Library/LaunchPreview/request ("capture", "build", "build insight", "build ingenuity" or "build title"), so a rebuild and
     // new renders can be asked for from outside Unity. Nothing here runs unless that file exists.
     public static partial class DeltaIIBuilder
     {
@@ -56,7 +56,7 @@ namespace NasaHack.EditorTools
                     File.WriteAllText(DoneFile, "OK opened " + scenePath);
                     return;
                 }
-                bool insight = request.EndsWith("insight"), title = request.EndsWith("title");
+                bool insight = request.EndsWith("insight"), ingenuity = request.EndsWith("ingenuity"), title = request.EndsWith("title");
                 if (request.StartsWith("build") && !request.StartsWith("build2"))
                 {
                     // Pick up changed scripts and files first; a recompile reloads this code, then "build2" continues.
@@ -74,7 +74,7 @@ namespace NasaHack.EditorTools
                         File.WriteAllText(DoneFile, TitleScreenBuilder.Capture());
                         return;
                     }
-                    Build(insight ? Mission.InSight : Mission.Opportunity);
+                    Build(ingenuity ? Mission.Ingenuity : insight ? Mission.InSight : Mission.Opportunity);
                 }
                 string result = CapturePreviews();
                 File.WriteAllText(DoneFile, result);
@@ -92,7 +92,7 @@ namespace NasaHack.EditorTools
         {
             // Works on whichever launch scene is open.
             string open = EditorSceneManager.GetActiveScene().path;
-            mission = open.Contains("/InSight/") ? Mission.InSight : Mission.Opportunity;
+            mission = open.Contains("/Ingenuity/") ? Mission.Ingenuity : open.Contains("/InSight/") ? Mission.InSight : Mission.Opportunity;
             if (open != ScenePath) return "SKIPPED: a launch scene is not the open scene (" + open + ")";
             Directory.CreateDirectory(PreviewDir);
             foreach (var f in Directory.GetFiles(PreviewDir, "*.png")) File.Delete(f);
@@ -133,7 +133,9 @@ namespace NasaHack.EditorTools
                 if (display != null)
                 {
                     Shot(cam, "10-lander", new Vector3(4.2f, 1.65f, -1.2f), display.transform.position + Vector3.up * 1.3f, 70f);
-                    Shot(cam, "11-lander-sign", new Vector3(3.6f, 1.65f, 0.2f), new Vector3(5.7f, 1.3f, 1.4f), 60f);
+                    var sign = GameObject.Find("Lander Sign");
+                    if (sign != null)
+                        Shot(cam, "11-lander-sign", Vector3.Lerp(new Vector3(0f, 1.65f, 0f), sign.transform.position, 0.45f) + Vector3.up * 0.15f, sign.transform.position, 60f);
                 }
 
                 // ---- Liftoff: flames, smoke and engine glow simulated to a few seconds in

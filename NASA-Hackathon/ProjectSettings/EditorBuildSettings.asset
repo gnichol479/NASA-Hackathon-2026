@@ -32,6 +32,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/InSight/NASA-Headquarters/LastSignalFlashback/Scenes/InSight-Flashback.unity
     guid: 8af18a75831febb3c70393a2a8e18b29
+  - enabled: 1
+    path: Assets/Ingenuity/NASA-Headquarters/LastSignalFlashback/Scenes/Ingenuity-Flashback.unity
+    guid: d9658014243575abbed5e1536ded8ac2
+  - enabled: 1
+    path: Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity
+    guid: 943f06822918bd64fbb90ff502302a02
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11869147fc86e06a692ec91f4e4f958a, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: ec8c2195195c8f3e5b71021be2501364, type: 2}
