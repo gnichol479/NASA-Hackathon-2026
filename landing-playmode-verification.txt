@@ -1,0 +1,18 @@
+PASS
+Detailed rover instantiated and deployment/handoff completed
+Imported arm joints available
+Six animated wheel parts available
+Three separate task canvases created
+Conclusion locked before samples are completed
+Sample 1 starts its instrument animation
+Sample 1 animation finishes and result is recorded
+Sample 1 cannot be counted twice
+Sample 2 starts its instrument animation
+Sample 2 animation finishes and result is recorded
+Sample 2 cannot be counted twice
+Sample 3 starts its instrument animation
+Sample 3 animation finishes and result is recorded
+Sample 3 cannot be counted twice
+Incorrect conclusion permits retry
+Correct water conclusion completes mission
+Completed mission loads Opportunity-Legacy
