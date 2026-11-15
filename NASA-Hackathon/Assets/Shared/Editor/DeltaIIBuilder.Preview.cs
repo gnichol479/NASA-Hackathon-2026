@@ -11,7 +11,7 @@ namespace NasaHack.EditorTools
     //
     //   NasaHack > Opportunity > Capture Launch Previews   ->  Library/LaunchPreview/*.png
     //
-    // It also watches for Library/LaunchPreview/request ("capture" or "build"), so a rebuild and
+    // It also watches for Library/LaunchPreview/request ("capture", "build" or "build insight"), so a rebuild and
     // new renders can be asked for from outside Unity. Nothing here runs unless that file exists.
     public static partial class DeltaIIBuilder
     {
@@ -36,18 +36,19 @@ namespace NasaHack.EditorTools
             string request = File.ReadAllText(RequestFile).Trim();
             try
             {
-                if (request == "build")
+                bool insight = request.EndsWith("insight");
+                if (request.StartsWith("build") && !request.StartsWith("build2"))
                 {
-                    // Pick up changed scripts first; a recompile reloads this code, then "build2" continues.
-                    File.WriteAllText(RequestFile, "build2");
+                    // Pick up changed scripts and files first; a recompile reloads this code, then "build2" continues.
+                    File.WriteAllText(RequestFile, insight ? "build2 insight" : "build2");
                     AssetDatabase.Refresh();
                     return;
                 }
                 File.Delete(RequestFile);
-                if (request == "build2")
+                if (request.StartsWith("build2"))
                 {
                     if (EditorUtility.scriptCompilationFailed) { File.WriteAllText(DoneFile, "COMPILE FAILED"); return; }
-                    Build();
+                    Build(insight ? Mission.InSight : Mission.Opportunity);
                 }
                 string result = CapturePreviews();
                 File.WriteAllText(DoneFile, result);
@@ -63,7 +64,10 @@ namespace NasaHack.EditorTools
 
         static string CapturePreviews()
         {
-            if (EditorSceneManager.GetActiveScene().path != ScenePath) return "SKIPPED: Opportunity-Launch is not the open scene";
+            // Works on whichever launch scene is open.
+            string open = EditorSceneManager.GetActiveScene().path;
+            mission = open.Contains("/InSight/") ? Mission.InSight : Mission.Opportunity;
+            if (open != ScenePath) return "SKIPPED: a launch scene is not the open scene (" + open + ")";
             Directory.CreateDirectory(PreviewDir);
             foreach (var f in Directory.GetFiles(PreviewDir, "*.png")) File.Delete(f);
 
@@ -82,22 +86,34 @@ namespace NasaHack.EditorTools
             Quaternion padRot = rocket.rotation;
             float lightWas = launch.engineLight ? launch.engineLight.intensity : 0f;
             var eye = new Vector3(0f, 1.65f, 0f);
-            Vector3 mid = padPos + Vector3.up * 16f;
+            var rocketBounds = rocket.GetComponentsInChildren<MeshRenderer>().Select(r => r.bounds).Aggregate((a, b) => { a.Encapsulate(b); return a; });
+            float tall = rocketBounds.size.y;
+            Vector3 mid = padPos + Vector3.up * tall * 0.42f;
+
+            // Looping ambient effects (fog banks) only run in Play mode; step them forward for the stills.
+            var ambient = Object.FindObjectsOfType<ParticleSystem>().Where(ps => ps.main.playOnAwake && ps.main.loop).ToList();
+            foreach (var ps in ambient) ps.Simulate(45f, true, true);
 
             try
             {
                 // ---- On the pad
                 Shot(cam, "1-deck-idle", eye, mid, 70f);
                 Shot(cam, "2-deck-wide", eye + new Vector3(0f, 0f, -3f), new Vector3(0f, 6f, 40f), 95f);
-                Shot(cam, "3-rocket-close", new Vector3(26f, 5f, 52f), padPos + Vector3.up * 20f, 62f);
+                Shot(cam, "3-rocket-close", padPos + new Vector3(26f, 5f - padPos.y, -38f), padPos + Vector3.up * tall * 0.5f, tall > 50f ? 78f : 62f);
                 Shot(cam, "4-console", new Vector3(-0.5f, 1.65f, -0.9f), new Vector3(0.75f, 0.95f, 1.0f), 60f);
                 Shot(cam, "5-moon-behind", eye, eye + MoonDir * 100f + Vector3.down * 12f, 75f);
                 Shot(cam, "6-aerial", new Vector3(-150f, 90f, -70f), new Vector3(10f, 5f, 110f), 55f);
+                var display = GameObject.Find("Lander Display");
+                if (display != null)
+                {
+                    Shot(cam, "10-lander", new Vector3(4.2f, 1.65f, -1.2f), display.transform.position + Vector3.up * 1.3f, 70f);
+                    Shot(cam, "11-lander-sign", new Vector3(3.6f, 1.65f, 0.2f), new Vector3(5.7f, 1.3f, 1.4f), 60f);
+                }
 
                 // ---- Liftoff: flames, smoke and engine glow simulated to a few seconds in
                 SetFlight(launch, padPos, padRot, height: 7f, pitch: 0f, glow: 1f, flameTime: 1.2f, smokeTime: 4f, airLit: false);
                 Shot(cam, "7-liftoff", eye, mid, 70f);
-                Shot(cam, "8-liftoff-close", new Vector3(26f, 5f, 52f), padPos + Vector3.up * 14f, 62f);
+                Shot(cam, "8-liftoff-close", padPos + new Vector3(26f, 5f - padPos.y, -38f), padPos + Vector3.up * tall * 0.36f, tall > 50f ? 78f : 62f);
 
                 // ---- Climbing
                 SetFlight(launch, padPos, padRot, height: 150f, pitch: 6f, glow: 0.45f, flameTime: 1.2f, smokeTime: 9f, airLit: false);
@@ -109,6 +125,7 @@ namespace NasaHack.EditorTools
                 if (launch.engineLight) launch.engineLight.intensity = lightWas;
                 foreach (var ps in launch.GetComponentsInChildren<ParticleSystem>(true))
                     ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                foreach (var ps in ambient) if (ps) ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 Object.DestroyImmediate(camGo);
             }
             return "OK " + string.Join(", ", Directory.GetFiles(PreviewDir, "*.png").Select(Path.GetFileName));
