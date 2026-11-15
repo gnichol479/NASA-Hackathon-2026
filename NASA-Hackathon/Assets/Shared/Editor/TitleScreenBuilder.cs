@@ -235,6 +235,7 @@ namespace NasaHack.EditorTools
                     flow.debugKey = KeyCode.Alpha1 + i;   // desktop testing: 1, 2, 3
                     UnityEventTools.AddVoidPersistentListener(button.onClick, new UnityAction(flow.Load));
                     targets.Add(target);
+                    targets.Add(name + "-Launch"); // the assembly room hands off to it, so it must be in Build Settings too
                 }
                 else
                 {

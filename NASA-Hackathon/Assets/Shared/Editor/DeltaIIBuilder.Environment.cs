@@ -93,7 +93,7 @@ namespace NasaHack.EditorTools
             // Light poles along the access road.
             var pole = mats.Get("Pole Gray", new Color(0.5f, 0.5f, 0.52f), 0.4f, 0.4f);
             var lamp = mats.Get("Lamp", new Color(1f, 0.95f, 0.8f), 0.6f, 0f, false,
-                                NightLaunch ? new Color(3.2f, 2.7f, 1.8f) : new Color(1.2f, 1.1f, 0.85f));
+                                Night ? new Color(3.2f, 2.7f, 1.8f) : new Color(1.2f, 1.1f, 0.85f));
             foreach (var p in RoadLamps)
             {
                 float side = Mathf.Sign(p.x);
@@ -228,7 +228,7 @@ namespace NasaHack.EditorTools
             foreach (var t in env.GetComponentsInChildren<Transform>(true))
                 GameObjectUtility.SetStaticEditorFlags(t.gameObject, StaticEditorFlags.BatchingStatic);
 
-            if (NightLaunch)
+            if (Night)
             {
                 BuildNightLights(env, mats);
                 BuildNightAtmosphere(scene, mats);

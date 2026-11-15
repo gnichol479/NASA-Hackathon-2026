@@ -27,6 +27,7 @@ Hey team, here's where we are.
 - **Arrival** (Yarden): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
 - **Legacy** (Yarden): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
 - **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
+- **Landing** (Susan): parachute/airbag landing, rover deployment, and three hands-on science tasks with instrument animations, persistent findings, completion chimes, and a handoff to Legacy. Details in [Landing scene](#landing-scene-susan) below
 - **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
 - **Flashback/Origin** (Gibson): rover assembly experience in the facility
 - Shared scripts anyone can reuse (see below)
@@ -34,7 +35,7 @@ Hey team, here's where we are.
 **Your part**
 - Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
-- Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
+- Susan: Landing + three hands-on rover science tasks (hematite "blueberries", jarosite analysis, and interpreting evidence of water)
 - Yarden: Arrival + Legacy
 
 **Open decisions**
@@ -50,7 +51,7 @@ Hey team, here's where we are.
 TitleScreen-Night ─ Opportunity → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen-Night
  (mission choice)                    (present)            (flashback)          (flashback)          (flashback)            (present)
                   ├ InSight     → InSight-Flashback → InSight-Launch → TitleScreen-Night
-                  └ Ingenuity   → coming soon
+                  └ Ingenuity   → Ingenuity-Flashback → Ingenuity-Launch → TitleScreen-Night
 ```
 
 Every scene has a **Scene Flow** object already pointing to the next scene. When your part is done, call `Load()` on it. That's the only hook you need:
@@ -94,6 +95,29 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - Rocket: Delta II 7925H ("Heavy"), nine strap-on solid boosters, six lit on the pad and three in flight
 - The flight in the scene is sped up. The real timeline is much longer
 
+## Landing scene (Susan)
+
+`Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity`. Susan built the landing sequence and rover science activity between Launch and Legacy.
+
+**What happens**
+1. Watch the four-second parachute/airbag landing from outside, followed by the detailed rover's solar-panel deployment. A fade moves the player to an observer view above and behind Opportunity while keeping headset tracking active.
+2. Select **Begin mission** on the briefing panel, then approach each of the three sample stations. Each station has its own instructions, instrument action, and findings that remain visible after completion.
+3. Use the microscopic imager to reveal enlarged hematite "blueberries", run a scripted jarosite mineral analysis, then inspect inconclusive red dust and interpret the evidence.
+4. Choose the supported conclusion: evidence of water. An incorrect life conclusion gives retry feedback. Completing the mission unlocks the button to continue to `Opportunity-Legacy`.
+
+**What Susan added**
+- Detailed rover with the imported panel-unfold animation, wheel rotation during movement, a gentle mast scan, and procedural arm/tool contact and retraction at the samples. Driving pauses during instrument actions.
+- Three separate task canvases, ordered progression, protection against counting a sample twice, and a sample-recorded chime.
+- Mars terrain, rocks, lighting, and sky matched to Legacy, plus far terrain built with the locally imported Mars Landscape 3D pack. Surface grounding uses the highest terrain intersection where terrain sections overlap.
+- Desktop controls: **Enter** begins/advances the mission, **E** investigates a nearby sample, **1** selects water, and **2** selects life for retry feedback. Panels and sample selection also provide interaction controls.
+
+**Files and verification**
+- Runtime: `Assets/Opportunity/Landing/Scripts/LandingSequenceController.cs`. Full setup notes, science sources, credits, and manual checks: [Landing README](NASA-Hackathon/Assets/Opportunity/Landing/README.md).
+- Unity menu: **NasaHack > Landing > Verify playable mission**. The recorded automated Play-mode run **passed**, covering deployment, rover joints/wheels, all three tasks, duplicate prevention, conclusion retry, and transition to Legacy. See [verification report](landing-playmode-verification.txt).
+- Physical controller input, panel readability, arm contact appearance, wheel axes, and headset comfort still need manual device testing.
+
+The activity uses scripted educational readings and illustrative rover motion. The environment intentionally reuses Legacy's Perseverance Valley scenery for continuity; it is not an accurate reconstruction of the Eagle Crater landing site. Legacy's terrain and panorama credits also apply here.
+
 ## InSight launch scene (Dominic)
 
 `Assets/InSight/Launch/Scenes/InSight-Launch.unity`. Same idea as the Opportunity launch, built with the same scripts, for the InSight lander.
@@ -123,6 +147,27 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - **Narration:** captions are InSight's, but there is no voice-over yet (Gibson's MP3s were Opportunity's lines). Generate it with **Last Signal > InSight Flashback > Narration > ElevenLabs Brian** (needs an ElevenLabs API key)
 - The title screen's InSight button starts here, and it is in Build Settings
 
+## Ingenuity path (Dominic)
+
+Built the same way as InSight's: an assembly room, then a launch, then back to the title screen.
+
+**Assembly room:** `Assets/Ingenuity/NASA-Headquarters/`, scene `Ingenuity-Flashback.unity`
+- Gibson's clean room again, this time for the **Ingenuity helicopter**. Parts: **01 rotor blades** (both rotors and their hubs), **02 solar panel**, **03 landing legs**, from `Assets/Ingenuity/Models/Ingenuity-Helicopter.glb`
+- The helicopter is at real size (rotors 1.2 m across), so it is small on the podium. Its body rests on a small work stand until the legs are fitted
+- Classes are `IngenuityX`, namespace `LastSignal.IngenuityFlashback`, tools under **Last Signal > Ingenuity Flashback**. **Verify Assembly Flow** passes
+- Captions only, no voice-over yet (same as InSight)
+
+**Launch:** `Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity`
+- An **Atlas V 541** at real size: bronze booster, four white solid rocket boosters that drop away in flight, and the wide 5-m nose fairing
+- A **daytime** launch at Cape Canaveral, reusing the Cape surroundings from the Opportunity launch with the daytime sky
+- The helicopter model stands on a pedestal beside the viewing deck, with a sign
+- **Rebuild:** **NasaHack > Ingenuity > Build Atlas V Launch**
+
+**Ingenuity facts used.** Check these against a NASA page before showing them:
+- Launched with the Perseverance rover on July 30, 2020 at 7:50 a.m. EDT from Cape Canaveral, Space Launch Complex 41, on an Atlas V 541. It rode folded up under the rover
+- Landed with Perseverance in Jezero Crater on February 18, 2021. First flight: April 19, 2021
+- Two rotors 1.2 m across, spinning in opposite directions at about 2,400 turns a minute. A solar panel charges its batteries
+
 ## Title screen with mission choice (Dominic)
 
 `Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
@@ -134,9 +179,9 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 |---|---|---|
 | Opportunity | `Opportunity-Arrival` | **1** |
 | InSight | `InSight-Flashback` (assembly room), then `InSight-Launch` | **2** |
-| Ingenuity | nothing yet: shows "Coming soon" | |
+| Ingenuity | `Ingenuity-Flashback` (assembly room), then `Ingenuity-Launch` | **3** |
 
-- **Adding Ingenuity (or more InSight parts):** create a scene named `Ingenuity-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
+- **Adding more parts to a mission:** create a scene named `<Mission>-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
 - The builder is `Assets/Shared/Editor/TitleScreenBuilder.cs`. It rebuilds the whole scene, so hand edits to it are lost. Its assets are in `Assets/Shared/Title/`
 
 **Changes outside my own scenes, so everyone knows**

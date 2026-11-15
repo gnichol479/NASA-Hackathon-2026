@@ -23,14 +23,17 @@ namespace NasaHack.EditorTools
     {
         // Which launch is being built. Every path below follows it, so each mission keeps its own
         // scene, meshes, materials and textures. InSight's parts are in DeltaIIBuilder.InSight.cs.
-        enum Mission { Opportunity, InSight }
+        enum Mission { Opportunity, InSight, Ingenuity }
         static Mission mission = Mission.Opportunity;
         static bool InSight => mission == Mission.InSight;
+        static bool Ingenuity => mission == Mission.Ingenuity;
+        static bool Atlas => InSight || Ingenuity;                 // both flew on an Atlas V
+        static bool Night => NightLaunch && !Ingenuity;            // Ingenuity launched on a summer morning
 
-        static string Root => InSight ? "Assets/InSight/Launch" : "Assets/Opportunity/Launch";
-        static string ScenePath => Root + (InSight ? "/Scenes/InSight-Launch.unity" : "/Scenes/Opportunity-Launch.unity");
-        static string MeshPath => Root + (InSight ? "/Models/AtlasV-Meshes.asset" : "/Models/DeltaII-Meshes.asset");
-        static string PrefabPath => Root + (InSight ? "/Prefabs/Atlas V 401.prefab" : "/Prefabs/Delta II 7925H.prefab");
+        static string Root => "Assets/" + mission + "/Launch";
+        static string ScenePath => Root + "/Scenes/" + mission + "-Launch.unity";
+        static string MeshPath => Root + (Atlas ? "/Models/AtlasV-Meshes.asset" : "/Models/DeltaII-Meshes.asset");
+        static string PrefabPath => Root + (Ingenuity ? "/Prefabs/Atlas V 541.prefab" : InSight ? "/Prefabs/Atlas V 401.prefab" : "/Prefabs/Delta II 7925H.prefab");
         static string MatDir => Root + "/Materials";
         static string ParticleTexPath => Root + "/Textures/SoftParticle.png";
 
@@ -50,6 +53,9 @@ namespace NasaHack.EditorTools
         [MenuItem("NasaHack/InSight/Build Atlas V Launch")]
         public static void BuildInSight() => Build(Mission.InSight);
 
+        [MenuItem("NasaHack/Ingenuity/Build Atlas V Launch")]
+        public static void BuildIngenuity() => Build(Mission.Ingenuity);
+
         static void Build(Mission which)
         {
             mission = which;
@@ -67,8 +73,8 @@ namespace NasaHack.EditorTools
                 var scene = EditorSceneManager.GetActiveScene();
 
                 var mats = new Mats();
-                var meshes = InSight ? BuildAtlasMeshes() : BuildMeshes();
-                var rocketPrefab = InSight ? BuildAtlasPrefab(meshes, mats) : BuildRocketPrefab(meshes, mats);
+                var meshes = Atlas ? BuildAtlasMeshes() : BuildMeshes();
+                var rocketPrefab = Atlas ? BuildAtlasPrefab(meshes, mats) : BuildRocketPrefab(meshes, mats);
 
                 foreach (var name in new[] { "Launch Complex", "Launch Console", "Countdown Board", "Lander Display" })
                     foreach (var g in scene.GetRootGameObjects().Where(g => g.name == name)) Object.DestroyImmediate(g);
@@ -81,12 +87,12 @@ namespace NasaHack.EditorTools
                 var complex = new GameObject("Launch Complex");
                 complex.transform.position = PadPosition;
                 BuildPad(complex.transform, mats);
-                if (InSight) BuildAtlasTower(complex.transform, mats);
+                if (Atlas) BuildAtlasTower(complex.transform, mats);
                 else BuildTower(complex.transform, mats);
 
                 var rocket = (GameObject)PrefabUtility.InstantiatePrefab(rocketPrefab, scene);
                 rocket.transform.SetParent(complex.transform, false);
-                rocket.transform.localPosition = new Vector3(0f, PadTop + MountHeight + (InSight ? 1.9f : 1.25f), 0f);
+                rocket.transform.localPosition = new Vector3(0f, PadTop + MountHeight + (Atlas ? 1.9f : 1.25f), 0f);
 
                 var smoke = MakeSmoke(complex.transform, mats);
 
@@ -95,7 +101,7 @@ namespace NasaHack.EditorTools
                 launch.mainEngineFlames = FindAll<ParticleSystem>(rocket, "Flame Main", "Flame Vernier");
                 launch.groundLitFlames = FindAll<ParticleSystem>(rocket, "Flame GroundLit");
                 launch.airLitFlames = FindAll<ParticleSystem>(rocket, "Flame AirLit");
-                launch.groundLitBoosters = rocket.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("GEM-46 Ground-lit")).ToArray();
+                launch.groundLitBoosters = rocket.GetComponentsInChildren<Transform>(true).Where(t => t.name.StartsWith("GEM-46 Ground-lit") || t.name.StartsWith("SRB Ground-lit")).ToArray();
                 launch.liftoffEffects = FindAll<ParticleSystem>(rocket, "Exhaust Trail", "Engine Flare");
                 launch.engineLight = rocket.GetComponentsInChildren<Light>(true).FirstOrDefault();
                 launch.padSmoke = smoke;
@@ -115,12 +121,17 @@ namespace NasaHack.EditorTools
                     ConfigureInSightLaunch(launch);
                     BuildLanderDisplay(scene, mats);
                 }
+                else if (Ingenuity)
+                {
+                    ConfigureIngenuityLaunch(launch);
+                    BuildHelicopterDisplay(scene, mats);
+                }
 
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
                 AssetDatabase.SaveAssets();
                 Selection.activeGameObject = complex;
-                Debug.Log("[Delta II] Built the " + (InSight ? "Atlas V 401 (InSight)" : "Delta II 7925H") + " launch in " + ScenePath +
+                Debug.Log("[Delta II] Built the " + (Ingenuity ? "Atlas V 541 (Ingenuity)" : InSight ? "Atlas V 401 (InSight)" : "Delta II 7925H") + " launch in " + ScenePath +
                           ". Press Play, then press the red LAUNCH button (or L on the keyboard).");
             }
             catch (System.Exception e)
@@ -355,7 +366,7 @@ namespace NasaHack.EditorTools
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
             g.SetKeys(
-                NightLaunch
+                Night
                     ? new[] { new GradientColorKey(new Color(1f, 0.72f, 0.4f), 0f), new GradientColorKey(new Color(0.75f, 0.42f, 0.26f), 0.12f), new GradientColorKey(new Color(0.3f, 0.3f, 0.36f), 0.45f), new GradientColorKey(new Color(0.2f, 0.21f, 0.27f), 1f) }
                     : new[] { new GradientColorKey(new Color(1f, 0.85f, 0.6f), 0f), new GradientColorKey(Color.white, 0.12f), new GradientColorKey(new Color(0.9f, 0.9f, 0.9f), 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.7f, 0.04f), new GradientAlphaKey(0.5f, 0.5f), new GradientAlphaKey(0f, 1f) });
@@ -420,7 +431,7 @@ namespace NasaHack.EditorTools
             main.startSize = new ParticleSystem.MinMaxCurve(6f, 12f);
             main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
             // Smoke is unlit, so at night it's tinted darker, with an orange glow where the flames light it.
-            main.startColor = NightLaunch ? new Color(0.5f, 0.45f, 0.43f) : new Color(0.82f, 0.8f, 0.78f);
+            main.startColor = Night ? new Color(0.5f, 0.45f, 0.43f) : new Color(0.82f, 0.8f, 0.78f);
             main.gravityModifier = -0.03f;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.maxParticles = 1500;
@@ -433,7 +444,7 @@ namespace NasaHack.EditorTools
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
             g.SetKeys(
-                NightLaunch
+                Night
                     ? new[] { new GradientColorKey(new Color(1f, 0.78f, 0.5f), 0f), new GradientColorKey(new Color(0.95f, 0.62f, 0.4f), 0.2f), new GradientColorKey(new Color(0.5f, 0.42f, 0.42f), 0.6f), new GradientColorKey(new Color(0.32f, 0.33f, 0.4f), 1f) }
                     : new[] { new GradientColorKey(new Color(1f, 0.75f, 0.5f), 0f), new GradientColorKey(Color.white, 0.15f), new GradientColorKey(new Color(0.85f, 0.85f, 0.85f), 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.55f, 0.1f), new GradientAlphaKey(0.4f, 0.6f), new GradientAlphaKey(0f, 1f) });

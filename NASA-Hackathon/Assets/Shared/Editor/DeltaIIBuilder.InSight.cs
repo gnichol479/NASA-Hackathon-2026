@@ -8,7 +8,13 @@ using UnityEngine.UI;
 
 namespace NasaHack.EditorTools
 {
-    // InSight's launch, built with the same tools as Opportunity's (the class keeps its Delta II name).
+    // InSight's and Ingenuity's launches, built with the same tools as Opportunity's (the class keeps its Delta II name).
+    //
+    //   NasaHack > Ingenuity > Build Atlas V Launch   ->  Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity
+    //   Ingenuity rode to Mars under the Perseverance rover: July 30, 2020, 7:50 a.m. EDT, Cape Canaveral,
+    //   Space Launch Complex 41, on an Atlas V 541 (5-m fairing, four solid rocket boosters). A daytime launch,
+    //   so it reuses the Cape Canaveral surroundings with the daytime sky.
+    //
     //
     //   NasaHack > InSight > Build Atlas V Launch     ->  Assets/InSight/Launch/Scenes/InSight-Launch.unity
     //
@@ -48,7 +54,7 @@ namespace NasaHack.EditorTools
         // Atlas V 401
         // =====================================================================================
 
-        const float AtlasR = 1.905f, CentaurR = 1.525f, AtlasFairingR = 2.1f;
+        const float AtlasR = 1.905f, CentaurR = 1.525f, AtlasFairingR = 2.1f, PlfR = 2.7f, SrbR = 0.79f;
 
         static Dictionary<string, Mesh> BuildAtlasMeshes()
         {
@@ -65,6 +71,16 @@ namespace NasaHack.EditorTools
                 ["Fairing Nose"] = Lathe("Fairing Nose", Ogive(AtlasFairingR, 52.6f, 5.7f, 16), false, false),
                 ["Fairing Band"] = Lathe("Fairing Band", P(AtlasFairingR + 0.012f, 0f, AtlasFairingR + 0.012f, 0.16f), false, false),
                 ["Feedline"] = Lathe("Feedline", P(0.2f, 3f, 0.2f, 31.5f), true, true, 14),
+                // Atlas V 541 only: the 5-m fairing that also encloses the Centaur, and the solid rocket boosters.
+                ["PLF Boattail"] = Lathe("PLF Boattail", P(AtlasR, 32.5f, PlfR, 34.4f), false, false),
+                ["PLF Body"] = Lathe("PLF Body", P(PlfR, 34.4f, PlfR, 48.6f), false, false),
+                ["PLF Nose"] = Lathe("PLF Nose", Ogive(PlfR, 48.6f, 9.7f, 18), false, false),
+                ["PLF Band"] = Lathe("PLF Band", P(PlfR + 0.012f, 0f, PlfR + 0.012f, 0.18f), false, false),
+                ["SRB Skirt"] = Lathe("SRB Skirt", P(0.86f, 0f, SrbR, 0.8f), true, false),
+                ["SRB Body"] = Lathe("SRB Body", P(SrbR, 0.8f, SrbR, 15.6f), false, false),
+                ["SRB Nose"] = Lathe("SRB Nose", Ogive(SrbR, 15.6f, 2.6f, 10), false, false),
+                ["SRB Band"] = Lathe("SRB Band", P(SrbR + 0.01f, 0f, SrbR + 0.01f, 0.24f), false, false),
+                ["SRB Nozzle"] = Lathe("SRB Nozzle", new[] { V(0.62f, -1.0f), V(0.48f, -0.5f), V(0.3f, 0f), V(0.36f, 0.2f) }, false, false),
                 ["Nozzle RD-180"] = Lathe("Nozzle RD-180", new[] { V(0.74f, -1.9f), V(0.62f, -1.25f), V(0.44f, -0.55f), V(0.28f, 0.05f), V(0.36f, 0.4f) }, false, false),
             };
 
@@ -88,22 +104,34 @@ namespace NasaHack.EditorTools
             var metal = mats.Get("Nozzle Metal", new Color(0.22f, 0.2f, 0.19f), 0.6f, 0.85f, doubleSided: true);
             var flameMat = mats.Particle("Flame", additive: true);
 
-            var rocket = new GameObject("Atlas V 401");
+            var rocket = new GameObject(Ingenuity ? "Atlas V 541" : "Atlas V 401");
             var t = rocket.transform;
             Part(t, "Aft Skirt", m, trim, Vector3.zero);
             Part(t, "Booster", m, bronze, Vector3.zero);
             Part(t, "Booster Band", m, dark, new Vector3(0f, 1.3f, 0f));
             Part(t, "Booster Band", m, white, new Vector3(0f, 30.6f, 0f));
             Part(t, "Booster Band", m, dark, new Vector3(0f, 32.15f, 0f));
-            Part(t, "Interstage", m, white, Vector3.zero);
-            Part(t, "Centaur", m, white, Vector3.zero);
-            Part(t, "Centaur Band", m, dark, new Vector3(0f, 36.2f, 0f));
-            Part(t, "Centaur Band", m, trim, new Vector3(0f, 45.1f, 0f));
-            Part(t, "Fairing Boattail", m, white, Vector3.zero);
-            Part(t, "Fairing Body", m, white, Vector3.zero);
-            Part(t, "Fairing Nose", m, white, Vector3.zero);
-            Part(t, "Fairing Band", m, trim, new Vector3(0f, 46.4f, 0f));
-            Part(t, "Fairing Band", m, trim, new Vector3(0f, 52.5f, 0f));
+            if (Ingenuity)
+            {
+                // 541: the wide fairing covers the Centaur upper stage as well as the payload.
+                Part(t, "PLF Boattail", m, white, Vector3.zero);
+                Part(t, "PLF Body", m, white, Vector3.zero);
+                Part(t, "PLF Nose", m, white, Vector3.zero);
+                Part(t, "PLF Band", m, trim, new Vector3(0f, 34.4f, 0f));
+                Part(t, "PLF Band", m, trim, new Vector3(0f, 48.5f, 0f));
+            }
+            else
+            {
+                Part(t, "Interstage", m, white, Vector3.zero);
+                Part(t, "Centaur", m, white, Vector3.zero);
+                Part(t, "Centaur Band", m, dark, new Vector3(0f, 36.2f, 0f));
+                Part(t, "Centaur Band", m, trim, new Vector3(0f, 45.1f, 0f));
+                Part(t, "Fairing Boattail", m, white, Vector3.zero);
+                Part(t, "Fairing Body", m, white, Vector3.zero);
+                Part(t, "Fairing Nose", m, white, Vector3.zero);
+                Part(t, "Fairing Band", m, trim, new Vector3(0f, 46.4f, 0f));
+                Part(t, "Fairing Band", m, trim, new Vector3(0f, 52.5f, 0f));
+            }
 
             // The liquid-oxygen feedline and a cable raceway run up the outside of the booster.
             var feed = Part(t, "Feedline", m, trim, Vector3.zero);
@@ -120,9 +148,31 @@ namespace NasaHack.EditorTools
                 MakeFlame(t, "Flame Main", new Vector3(x, -1.9f, 0f), 0.6f, 2.0f, flameMat);
             }
 
-            // Kerosene and liquid oxygen burn much cleaner than solid boosters: a thinner trail.
+            // 541: four solid rocket boosters, two on each side. They light at liftoff and drop away in flight.
+            if (Ingenuity)
+            {
+                float ring = AtlasR + SrbR + 0.04f;
+                int n = 0;
+                foreach (float angle in new[] { 62f, 118f, 242f, 298f })
+                {
+                    float rad = angle * Mathf.Deg2Rad;
+                    var srb = new GameObject("SRB Ground-lit " + (++n));
+                    srb.transform.SetParent(t, false);
+                    srb.transform.localPosition = new Vector3(Mathf.Sin(rad) * ring, 0.4f, Mathf.Cos(rad) * ring);
+                    Part(srb.transform, "SRB Skirt", m, white, Vector3.zero);
+                    Part(srb.transform, "SRB Body", m, white, Vector3.zero);
+                    Part(srb.transform, "SRB Nose", m, white, Vector3.zero);
+                    Part(srb.transform, "SRB Band", m, dark, new Vector3(0f, 1.2f, 0f));
+                    Part(srb.transform, "SRB Band", m, dark, new Vector3(0f, 15.2f, 0f));
+                    Part(srb.transform, "SRB Nozzle", m, metal, Vector3.zero);
+                    MakeFlame(srb.transform, "Flame GroundLit", new Vector3(0f, -1.0f, 0f), 0.45f, 1.5f, flameMat);
+                }
+            }
+
+            // Kerosene and liquid oxygen burn much cleaner than solid boosters: a thinner trail (401 only).
             var trail = MakeExhaustTrail(t, mats);
-            var em = trail.emission; em.rateOverTime = 24f; em.rateOverDistance = 0.16f;
+            var em = trail.emission;
+            if (!Ingenuity) { em.rateOverTime = 24f; em.rateOverDistance = 0.16f; }
             MakeEngineFlare(t, flameMat);
 
             var lightGo = new GameObject("Engine Glow");
@@ -158,6 +208,23 @@ namespace NasaHack.EditorTools
             }
             foreach (float y in new[] { 22f, 40f, 50f })
                 Box(tower, "Swing Arm", new Vector3(5.6f, y, 0f), new Vector3(7.4f, 0.7f, 1.4f), steel);
+        }
+
+        static void ConfigureIngenuityLaunch(DeltaIILaunch launch)
+        {
+            launch.liftoffAcceleration = 6f;   // four solid boosters get a 541 moving quickly
+            launch.maxAcceleration = 30f;
+            launch.flightSeconds = 30f;
+            launch.engineLightIntensity = 1500f; // daylight: the glow matters less
+            launch.idleMessage =
+                "ATLAS V 541  •  PERSEVERANCE ROVER AND INGENUITY HELICOPTER\n" +
+                "Cape Canaveral, Space Launch Complex 41  •  July 30, 2020, 7:50 a.m. EDT\n\n" +
+                "Press the red LAUNCH button to start the countdown.";
+            launch.ignitionMessage = "RD-180 main engine start!";
+            launch.liftoffMessage = "LIFTOFF!\nAtlas V lifts off with Perseverance, and Ingenuity folded up under the rover's belly.";
+            launch.pitchMessage = "Heading east over the Atlantic Ocean.\nFour solid rocket boosters add extra thrust.";
+            launch.stagingMessage = "The four solid rocket boosters burn out and drop away.";
+            launch.cruiseMessage = "Ingenuity is on its way to Mars!\nLanding with Perseverance: Jezero Crater, February 18, 2021.\nFirst flight: April 19, 2021.\n\n(Real launch timeline sped up.)";
         }
 
         static void ConfigureInSightLaunch(DeltaIILaunch launch)
@@ -457,67 +524,97 @@ namespace NasaHack.EditorTools
         }
 
         // =====================================================================================
-        // The lander on show beside the viewing deck
+        // The spacecraft on show beside the viewing deck
         // =====================================================================================
 
-        static void BuildLanderDisplay(UnityEngine.SceneManagement.Scene scene, Mats mats)
+        const string HelicopterSource = "Assets/Ingenuity/Models/Ingenuity-Helicopter.glb";
+
+        static void BuildLanderDisplay(UnityEngine.SceneManagement.Scene scene, Mats mats) =>
+            BuildDisplay(scene, mats, LanderSource, "InSight Lander", 6f, 4.3f, 0f, "INSIGHT LANDER",
+                "This is what is riding inside the rocket's nose cone, folded up for the trip.\n\n" +
+                "On Mars it will listen for marsquakes and measure heat coming from deep inside the planet.");
+
+        // Ingenuity is small (rotors 1.2 m across), so it stands on a pedestal at chest height.
+        static void BuildHelicopterDisplay(UnityEngine.SceneManagement.Scene scene, Mats mats) =>
+            BuildDisplay(scene, mats, HelicopterSource, "Ingenuity Helicopter", 1.22f, 2.2f, 0.85f, "INGENUITY HELICOPTER",
+                "This is riding to Mars folded up under the Perseverance rover, inside the rocket's nose cone.\n\n" +
+                "On Mars it will try the first powered flight on another planet.");
+
+        // width: real size of the model's widest side, in metres. pedestal: extra stand height under the model.
+        static void BuildDisplay(UnityEngine.SceneManagement.Scene scene, Mats mats, string modelPath, string objectName,
+                                 float width, float radius, float pedestal, string signTitle, string signBody)
         {
             var plinthMat = mats.Get("Display Plinth", new Color(0.16f, 0.17f, 0.19f), 0.5f, 0.2f);
             var yellow = mats.Get("Hazard Yellow", new Color(0.95f, 0.75f, 0.1f), 0.4f);
             var pole = mats.Get("Pole Gray", new Color(0.5f, 0.5f, 0.52f), 0.4f, 0.4f);
             var glow = mats.Get("Floodlight Glow", Color.white, 0.5f, 0f, false, new Color(4f, 3.8f, 3.4f));
 
+            // Keep plants clear of the stand.
+            foreach (var go in scene.GetRootGameObjects())
+                foreach (var tr in go.GetComponentsInChildren<Transform>(true))
+                    if (tr != null && (tr.name == "Palm Tree" || tr.name == "Scrub" || tr.name == "Brush") &&
+                        Vector3.Distance(new Vector3(tr.position.x, 0f, tr.position.z), DisplayPos) < radius + 2.5f)
+                        Object.DestroyImmediate(tr.gameObject);
+
             var root = new GameObject("Lander Display").transform;
             root.position = DisplayPos;
 
-            const float Radius = 4.3f, Top = 0.35f;
-            foreach (var (name, radius, height, y, mat) in new[]
+            const float Top = 0.35f;
+            float standTop = Top + pedestal;
+            var pieces = new System.Collections.Generic.List<(string, float, float, float, Material)>
             {
-                ("Plinth", Radius, Top, Top / 2f, plinthMat), ("Plinth Rim", Radius + 0.12f, 0.06f, 0.03f, yellow),
-            })
+                ("Plinth", radius, Top, Top / 2f, plinthMat), ("Plinth Rim", radius + 0.12f, 0.06f, 0.03f, yellow),
+            };
+            if (pedestal > 0f)
+            {
+                pieces.Add(("Pedestal", 0.55f, pedestal, Top + pedestal / 2f, plinthMat));
+                pieces.Add(("Pedestal Top", 0.8f, 0.05f, standTop - 0.025f, yellow));
+            }
+            foreach (var (name, r, height, y, mat) in pieces)
             {
                 var c = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 c.name = name;
                 Object.DestroyImmediate(c.GetComponent<Collider>());
                 c.transform.SetParent(root, false);
                 c.transform.localPosition = new Vector3(0f, y, 0f);
-                c.transform.localScale = new Vector3(radius * 2f, height / 2f, radius * 2f);
+                c.transform.localScale = new Vector3(r * 2f, height / 2f, r * 2f);
                 c.GetComponent<Renderer>().sharedMaterial = mat;
             }
 
-            // ---- The lander model, scaled to its real size (about 6 m across with the solar panels open).
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(LanderSource);
+            // ---- The model, scaled to its real size.
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
             if (model == null)
             {
-                Debug.LogWarning("[Delta II] Lander model not found at " + LanderSource + ". The display stand is empty.");
+                Debug.LogWarning("[Delta II] Display model not found at " + modelPath + ". The display stand is empty.");
             }
             else
             {
-                var lander = (GameObject)PrefabUtility.InstantiatePrefab(model, scene);
-                lander.name = "InSight Lander";
-                lander.transform.SetParent(root, false);
-                lander.transform.localPosition = Vector3.zero;
-                var renderers = lander.GetComponentsInChildren<Renderer>();
+                var shown = (GameObject)PrefabUtility.InstantiatePrefab(model, scene);
+                shown.name = objectName;
+                shown.transform.SetParent(root, false);
+                shown.transform.localPosition = Vector3.zero;
+                var renderers = shown.GetComponentsInChildren<Renderer>();
                 if (renderers.Length > 0)
                 {
                     Bounds B() { var b = renderers[0].bounds; foreach (var r in renderers) b.Encapsulate(r.bounds); return b; }
                     var b0 = B();
                     float widest = Mathf.Max(b0.size.x, b0.size.z);
-                    if (widest > 0.001f) lander.transform.localScale *= 6f / widest;
+                    if (widest > 0.001f) shown.transform.localScale *= width / widest;
                     var b1 = B();
-                    lander.transform.position += new Vector3(DisplayPos.x - b1.center.x, Top - b1.min.y, DisplayPos.z - b1.center.z);
-                    Debug.Log($"[Delta II] Lander: imported {b0.size}, shown at {B().size}");
+                    shown.transform.position += new Vector3(DisplayPos.x - b1.center.x, standTop - b1.min.y, DisplayPos.z - b1.center.z);
+                    Debug.Log($"[Delta II] {objectName}: imported {b0.size}, shown at {B().size}");
                 }
             }
 
             // ---- Two display lights
-            foreach (var local in new[] { new Vector3(-3.6f, 0f, -3.4f), new Vector3(3.8f, 0f, -2.6f) })
+            float k = radius / 4.3f;
+            foreach (var local in new[] { new Vector3(-3.6f * k, 0f, -3.4f * k), new Vector3(3.8f * k, 0f, -2.6f * k) })
             {
                 NoCollider(Box(root, "Display Light Pole", local + Vector3.up * 2.1f, new Vector3(0.08f, 4.2f, 0.08f), pole));
                 var head = new GameObject("Display Light").transform;
                 head.SetParent(root, false);
                 head.localPosition = local + Vector3.up * 4.25f;
-                head.rotation = Quaternion.LookRotation(DisplayPos + Vector3.up * 1.2f - head.position);
+                head.rotation = Quaternion.LookRotation(DisplayPos + Vector3.up * (standTop + 0.5f) - head.position);
                 NoCollider(Box(head, "Lamp", Vector3.zero, new Vector3(0.4f, 0.25f, 0.12f), glow));
                 var spot = head.gameObject.AddComponent<Light>();
                 spot.type = LightType.Spot;
@@ -529,10 +626,10 @@ namespace NasaHack.EditorTools
                 spot.shadows = LightShadows.None;
             }
 
-            // ---- Sign at the edge of the deck, facing the player
+            // ---- Sign at the edge of the stand, facing the player
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             Vector3 away = new Vector3(DisplayPos.x, 0f, DisplayPos.z).normalized; // from the player toward the display
-            var signPos = DisplayPos - away * 5.1f;
+            var signPos = DisplayPos - away * (radius + 0.8f);
             var post = Box(root, "Sign Post", Vector3.zero, new Vector3(0.08f, 1.0f, 0.08f), pole);
             NoCollider(post);
             post.transform.position = signPos + Vector3.up * 0.5f;
@@ -548,14 +645,13 @@ namespace NasaHack.EditorTools
             var bg = UiChild(sign.transform, "Background", Vector2.zero, Vector2.one).gameObject.AddComponent<Image>();
             bg.color = new Color(0.02f, 0.025f, 0.04f, 0.94f); bg.raycastTarget = false;
             var title = UiChild(sign.transform, "Title", new Vector2(0.05f, 0.74f), new Vector2(0.95f, 0.97f)).gameObject.AddComponent<Text>();
-            title.font = font; title.fontSize = 110; title.fontStyle = FontStyle.Bold; title.alignment = TextAnchor.MiddleLeft;
-            title.color = new Color(1f, 0.72f, 0.18f); title.text = "INSIGHT LANDER"; title.raycastTarget = false;
+            title.font = font; title.fontSize = 100; title.fontStyle = FontStyle.Bold; title.alignment = TextAnchor.MiddleLeft;
+            title.color = new Color(1f, 0.72f, 0.18f); title.text = signTitle; title.raycastTarget = false;
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
             var body = UiChild(sign.transform, "Body", new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.72f)).gameObject.AddComponent<Text>();
             body.font = font; body.fontSize = 56; body.alignment = TextAnchor.UpperLeft; body.color = new Color(0.92f, 0.94f, 1f);
             body.horizontalOverflow = HorizontalWrapMode.Wrap; body.verticalOverflow = VerticalWrapMode.Overflow; body.raycastTarget = false;
-            body.text =
-                "This is what is riding inside the rocket's nose cone, folded up for the trip.\n\n" +
-                "On Mars it will listen for marsquakes and measure heat coming from deep inside the planet.";
+            body.text = signBody;
         }
     }
 }
