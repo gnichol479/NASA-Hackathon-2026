@@ -1,32 +1,260 @@
-
 using System.Collections;
+using System.Collections.Generic;
+using NasaHack;
+using TMPro;
+using Unity.XR.CoreUtils;
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 
+// Demo additions are built only in Play mode; existing scene references stay intact.
 public class LandingSequenceController : MonoBehaviour
 {
     public GameObject lander;
     public GameObject opportunityRover;
-
     public float landingDuration = 4f;
+    [Tooltip("Target horizontal model size in metres; matches the team's other Opportunity scenes.")]
+    [Min(0.1f)] public float roverSizeMeters = 2.3f;
+    [Header("Stationary information panel")]
+    [Tooltip("Position relative to the landing site. X = sideways, Y = height above terrain, Z = forward/back.")]
+    public Vector3 panelOffset = new Vector3(1.8f, 1.45f, -3f);
+    XROrigin origin;
+    GameObject canopy, rock, berries;
+    RectTransform panel;
+    TextMeshProUGUI story;
+    Vector3 site;
+    bool ready, discovered;
+    readonly List<Object> assets = new List<Object>();
 
-    void Start()
+    IEnumerator Start()
     {
-        // Hide Opportunity while the lander is descending
+        if (lander == null || opportunityRover == null)
+        {
+            Debug.LogError("LandingAnimation needs Lander and Opportunity Rover references.", this);
+            yield break;
+        }
+        origin = FindObjectOfType<XROrigin>();
+        foreach (var terrain in Terrain.activeTerrains)
+            if (terrain.GetComponent<Collider>() != null && terrain.GetComponent<TeleportationArea>() == null)
+                terrain.gameObject.AddComponent<TeleportationArea>();
+        RenderSettings.fog = true;
+        RenderSettings.fogColor = new Color(0.55f, 0.32f, 0.20f);
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogDensity = 0.012f;
+        if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_SkyTint"))
+        {
+            var sky = new Material(RenderSettings.skybox);
+            sky.SetColor("_SkyTint", new Color(0.65f, 0.39f, 0.25f));
+            RenderSettings.skybox = sky;
+            assets.Add(sky);
+        }
+        site = Surface(opportunityRover.transform.position);
+        var renderers = opportunityRover.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length > 0)
+        {
+            var bounds = renderers[0].bounds;
+            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            float horizontalSize = Mathf.Max(bounds.size.x, bounds.size.z);
+            if (horizontalSize > 0.001f)
+            {
+                opportunityRover.transform.localScale *= Mathf.Max(0.1f, roverSizeMeters) / horizontalSize;
+                bounds = renderers[0].bounds;
+                foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            }
+            opportunityRover.transform.position += Vector3.up * (site.y - bounds.min.y);
+        }
         opportunityRover.SetActive(false);
-
-        // Start the landing sequence
-        StartCoroutine(LandingSequence());
+        var oldPanel = GameObject.Find("Oppertunity_InfoCanvas") ?? GameObject.Find("Opportunity_InfoCanvas");
+        if (oldPanel != null) oldPanel.SetActive(false);
+        BuildLander();
+        BuildMission();
+        if (origin != null)
+        {
+            origin.transform.root.localScale = Vector3.one;
+            origin.transform.localScale = Vector3.one;
+            MovePlayer(Surface(site - Vector3.forward * 12f));
+        }
+        float elapsed = 0f;
+        while (elapsed < landingDuration)
+        {
+            canopy.SetActive(elapsed < landingDuration * 0.45f);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+        lander.SetActive(false);
+        opportunityRover.SetActive(true);
+        var fader = ScreenFader.Instance;
+        if (origin != null && fader != null)
+        {
+            yield return fader.Fade(1f, 0.25f);
+            MovePlayer(Surface(site - Vector3.forward * 4.5f));
+            yield return null;
+            yield return fader.Fade(0f, 0.25f);
+        }
+        panel.gameObject.SetActive(true);
+        rock.SetActive(true);
+        if (Camera.main != null) UiFactory.FacePoint(panel, Camera.main.transform.position);
+        ready = true;
     }
 
-    IEnumerator LandingSequence()
+    Vector3 Surface(Vector3 point)
     {
-        // Wait for the landing animation to finish
-        yield return new WaitForSeconds(landingDuration);
+        var ray = new Ray(point + Vector3.up * 10000f, Vector3.down);
+        foreach (var terrain in Terrain.activeTerrains)
+        {
+            var collider = terrain.GetComponent<TerrainCollider>();
+            if (collider != null && collider.Raycast(ray, out var hit, 20000f)) return hit.point;
+        }
+        var ground = GameObject.Find("Ground (teleport)");
+        var floor = ground != null ? ground.GetComponent<Collider>() : null;
+        if (floor != null && floor.Raycast(ray, out var floorHit, 20000f)) return floorHit.point;
+        Debug.LogWarning("No landing surface below " + point + "; preserving height.", this);
+        return point;
+    }
 
-        // Hide the landing sphere
-        lander.SetActive(false);
+    void MovePlayer(Vector3 feet)
+    {
+        if (origin == null || origin.Camera == null) return;
+        var enabledControllers = new List<CharacterController>();
+        foreach (var c in origin.GetComponentsInChildren<CharacterController>())
+            if (c.enabled) { enabledControllers.Add(c); c.enabled = false; }
+        // Accounts for room-scale head offset without moving the tracked camera directly.
+        origin.MoveCameraToWorldLocation(feet + origin.transform.up * Mathf.Max(0.1f, origin.CameraInOriginSpaceHeight));
+        foreach (var c in enabledControllers) c.enabled = true;
+    }
 
-        // Reveal Opportunity on Mars
-        opportunityRover.SetActive(true);
+    Material MakeMaterial(Color color)
+    {
+        var material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        material.color = color;
+        assets.Add(material);
+        return material;
+    }
+
+    GameObject Shape(string name, PrimitiveType type, Transform parent, Vector3 position, Vector3 scale, Material material, bool keepCollider = false)
+    {
+        var go = GameObject.CreatePrimitive(type);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = position;
+        go.transform.localScale = scale;
+        go.GetComponent<Renderer>().sharedMaterial = material;
+        if (!keepCollider) Destroy(go.GetComponent<Collider>());
+        return go;
+    }
+
+    void BuildLander()
+    {
+        // Clip coordinates are (0,Y,4), relative to an anchor on the real surface.
+        var anchor = new GameObject("Landing Surface Anchor");
+        anchor.transform.SetParent(transform, false);
+        anchor.transform.position = site - Vector3.forward * 4f;
+        anchor.transform.rotation = Quaternion.identity;
+        lander.transform.SetParent(anchor.transform, false);
+        lander.transform.localScale = Vector3.one;
+        lander.transform.localPosition = new Vector3(0f, 25f, 4f);
+        foreach (Transform child in lander.transform) child.gameObject.SetActive(false);
+        var renderer = lander.GetComponent<Renderer>();
+        if (renderer != null) renderer.enabled = false;
+        var collider = lander.GetComponent<Collider>();
+        if (collider != null) collider.enabled = false;
+        var white = MakeMaterial(new Color(0.9f, 0.87f, 0.78f));
+        var orange = MakeMaterial(new Color(0.85f, 0.22f, 0.06f));
+        var dark = MakeMaterial(new Color(0.23f, 0.2f, 0.17f));
+        for (int i = 0; i < 4; i++)
+        {
+            float a = i * Mathf.PI / 2f;
+            Shape("Airbag " + i, PrimitiveType.Sphere, lander.transform,
+                new Vector3(Mathf.Cos(a) * 0.55f, -0.2f, Mathf.Sin(a) * 0.55f), Vector3.one * 1.6f, white);
+        }
+        Shape("Landing Payload", PrimitiveType.Cube, lander.transform, Vector3.up * 0.6f, new Vector3(0.9f, 0.5f, 0.9f), orange);
+        canopy = new GameObject("Descent Parachute and Lines");
+        canopy.transform.SetParent(lander.transform, false);
+        // Open dome, alternating colored gores, visible from below and above.
+        for (int gore = 0; gore < 16; gore++)
+        {
+            var vertices = new List<Vector3>();
+            var triangles = new List<int>();
+            for (int ring = 0; ring <= 8; ring++)
+            {
+                float latitude = ring * Mathf.PI / 16f;
+                for (int edge = 0; edge < 2; edge++)
+                {
+                    float longitude = (gore + edge) * Mathf.PI / 8f;
+                    vertices.Add(new Vector3(2.6f * Mathf.Sin(latitude) * Mathf.Cos(longitude),
+                        4f + 1.3f * Mathf.Cos(latitude), 2.6f * Mathf.Sin(latitude) * Mathf.Sin(longitude)));
+                }
+                if (ring == 8) continue;
+                int a = ring * 2;
+                triangles.AddRange(new[] { a, a+2, a+1, a+1, a+2, a+3, a+1, a+2, a, a+3, a+2, a+1 });
+            }
+            var mesh = new Mesh { name = "Parachute Gore" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            assets.Add(mesh);
+            var go = new GameObject("Canopy Gore " + gore, typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(canopy.transform, false);
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().sharedMaterial = gore % 2 == 0 ? white : orange;
+            if (gore % 2 != 0) continue;
+            var line = new GameObject("Suspension Line " + gore).AddComponent<LineRenderer>();
+            line.transform.SetParent(canopy.transform, false);
+            line.useWorldSpace = false;
+            line.sharedMaterial = dark;
+            line.startWidth = line.endWidth = 0.025f;
+            line.positionCount = 2;
+            line.SetPosition(0, Vector3.up * 0.8f);
+            float angle = gore * Mathf.PI / 8f;
+            line.SetPosition(1, new Vector3(2.6f * Mathf.Cos(angle), 4f, 2.6f * Mathf.Sin(angle)));
+        }
+    }
+
+    void BuildMission()
+    {
+        panel = UiFactory.CreatePanel("Landing Science Panel", transform, 1800f);
+        panel.GetComponent<Canvas>().worldCamera = Camera.main;
+        panel.position = Surface(site + new Vector3(panelOffset.x, 0f, panelOffset.z))
+            + Vector3.up * panelOffset.y;
+        UiFactory.AddText(panel, "Title", "Opportunity: follow the water", 72f, FontStyles.Bold);
+        story = UiFactory.AddText(panel, "Story", "I landed on Mars in 2004 to study rocks and soil for clues about past water.\n\nYour mission: approach the rock beside this panel. Point your controller ray at it and select to brush away the dust.\n\nDesktop simulator: approach the rock and press E.", 48f, FontStyles.Normal);
+        var button = UiFactory.AddButton(panel, "Continue to Legacy", "Continue to Opportunity's legacy", out _);
+        button.gameObject.SetActive(false);
+        button.onClick.AddListener(() => { var flow = FindObjectOfType<LoadNextScene>(); if (flow != null) flow.Load(); });
+        rock = Shape("Investigate Water Evidence Rock", PrimitiveType.Sphere, transform, Vector3.zero,
+            new Vector3(1.1f, 0.65f, 0.85f), MakeMaterial(new Color(0.48f, 0.29f, 0.19f)), true);
+        rock.transform.position = Surface(site + new Vector3(2.2f, 0f, -3f)) + Vector3.up * 0.25f;
+        rock.AddComponent<XRSimpleInteractable>().selectEntered.AddListener(_ => Investigate());
+        berries = new GameObject("Hematite Spherules (enlarged for visibility)");
+        berries.transform.SetParent(rock.transform, false);
+        var hematite = MakeMaterial(new Color(0.19f, 0.17f, 0.16f));
+        for (int i = 0; i < 9; i++)
+            Shape("Hematite " + i, PrimitiveType.Sphere, berries.transform,
+                new Vector3((i % 3 - 1) * 0.15f, 0.43f, (i / 3 - 1) * 0.15f), Vector3.one * 0.075f, hematite);
+        berries.SetActive(false);
+        rock.SetActive(false);
+        panel.gameObject.SetActive(false);
+    }
+
+    public void Investigate()
+    {
+        if (!ready || discovered || Camera.main == null || Vector3.Distance(Camera.main.transform.position, rock.transform.position) > 3f) return;
+        discovered = true;
+        berries.SetActive(true);
+        story.text = "Discovery complete! These enlarged dots represent hematite-rich 'blueberries': tiny mineral spheres. Opportunity's study of these spheres and surrounding rocks revealed evidence of ancient groundwater. This is evidence of water, not proof of life.\n\nOpportunity worked from 2004 to 2018, far beyond its planned 90-sol mission. Contact was lost during a huge dust storm; NASA ended the mission in 2019. Its discoveries still help us explore Mars.";
+        panel.Find("Continue to Legacy").gameObject.SetActive(true);
+    }
+
+    void Update()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.eKey.wasPressedThisFrame) Investigate();
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(KeyCode.E)) Investigate();
+#endif
+    }
+
+    void OnDestroy()
+    {
+        foreach (var asset in assets) if (asset != null) Destroy(asset);
     }
 }
