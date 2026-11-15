@@ -149,7 +149,7 @@ namespace NasaHack.EditorTools
             floor.AddComponent<TeleportationArea>();
 
             var flow = new GameObject("Scene Flow").AddComponent<LoadNextScene>();
-            flow.nextScene = "TitleScreen";
+            flow.nextScene = "TitleScreen-Night";
 
             EditorSceneManager.SaveScene(scene, ScenePath);
         }

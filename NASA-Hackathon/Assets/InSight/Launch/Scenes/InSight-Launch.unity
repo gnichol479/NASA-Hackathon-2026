@@ -26583,7 +26583,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 428b2917addc14e61b89eee2e153ba93, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextScene: TitleScreen
+  nextScene: TitleScreen-Night
   fadeSeconds: 0.75
   autoLoadAfter: 0
   debugKey: 110
