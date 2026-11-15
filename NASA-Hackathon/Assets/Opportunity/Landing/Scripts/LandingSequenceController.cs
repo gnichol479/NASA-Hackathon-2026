@@ -22,6 +22,10 @@ public class LandingSequenceController : MonoBehaviour
     [Range(0, 200)] public int sceneryRockCount = 95;
     public Material legacyRockMaterial;
     public TerrainLayer legacySandLayer;
+    [Header("Sample feedback")]
+    [Range(0f, 1f)] public float sampleSoundVolume = 0.18f;
+    AudioSource sampleAudio;
+    AudioClip sampleRecordedClip;
     XROrigin origin;
     GameObject canopy, missionRoot;
     readonly GameObject[] studyRocks = new GameObject[3];
@@ -445,6 +449,7 @@ public class LandingSequenceController : MonoBehaviour
         }
         examined[index] = true;
         examinedCount++;
+        PlaySampleRecorded();
         clues[index].SetActive(true);
         rockLabels[index].text = "SAMPLE " + (index+1) + "\nRecorded";
         rockLabels[index].color = new Color(0.65f,1f,0.75f);
@@ -472,6 +477,36 @@ public class LandingSequenceController : MonoBehaviour
         if (!discovered) return;
         var flow = FindObjectOfType<LoadNextScene>();
         if (flow != null) flow.Load();
+    }
+
+    void PlaySampleRecorded()
+    {
+        if (sampleSoundVolume <= 0f) return;
+        if (sampleAudio == null)
+        {
+            // Interface feedback, not a simulation of sound travelling through Mars' atmosphere.
+            var audioObject = new GameObject("Sample Recorded Audio");
+            audioObject.transform.SetParent(transform, false);
+            sampleAudio = audioObject.AddComponent<AudioSource>();
+            sampleAudio.playOnAwake = false;
+            sampleAudio.spatialBlend = 0f;
+            const int sampleRate = 44100;
+            var samples = new float[(int)(sampleRate * 0.24f)];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float time = i / (float)sampleRate;
+                bool secondNote = time >= 0.12f;
+                float localTime = secondNote ? time - 0.12f : time;
+                float frequency = secondNote ? 880f : 660f;
+                float envelope = Mathf.Clamp01(localTime / 0.008f)
+                    * Mathf.Clamp01((0.12f - localTime) / 0.045f);
+                samples[i] = Mathf.Sin(2f * Mathf.PI * frequency * localTime) * envelope * 0.5f;
+            }
+            sampleRecordedClip = AudioClip.Create("Sample Recorded Chime", samples.Length, 1, sampleRate, false);
+            sampleRecordedClip.SetData(samples, 0);
+            assets.Add(sampleRecordedClip);
+        }
+        sampleAudio.PlayOneShot(sampleRecordedClip, sampleSoundVolume);
     }
 
     void Update()
