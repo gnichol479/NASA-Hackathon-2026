@@ -27,6 +27,7 @@ Hey team, here's where we are.
 - **Arrival** (Yarden): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
 - **Legacy** (Yarden): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
 - **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
+- **Landing** (Susan): parachute/airbag landing, rover deployment, and three hands-on science tasks with instrument animations, persistent findings, completion chimes, and a handoff to Legacy. Details in [Landing scene](#landing-scene-susan) below
 - **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
 - **Flashback/Origin** (Gibson): rover assembly experience in the facility
 - Shared scripts anyone can reuse (see below)
@@ -34,7 +35,7 @@ Hey team, here's where we are.
 **Your part**
 - Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
-- Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
+- Susan: Landing + three hands-on rover science tasks (hematite "blueberries", jarosite analysis, and interpreting evidence of water)
 - Yarden: Arrival + Legacy
 
 **Open decisions**
@@ -93,6 +94,29 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - Launched July 7, 2003 at 11:18 p.m. EDT (a night launch) from Cape Canaveral, Space Launch Complex 17B
 - Rocket: Delta II 7925H ("Heavy"), nine strap-on solid boosters, six lit on the pad and three in flight
 - The flight in the scene is sped up. The real timeline is much longer
+
+## Landing scene (Susan)
+
+`Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity`. Susan built the landing sequence and rover science activity between Launch and Legacy.
+
+**What happens**
+1. Watch the four-second parachute/airbag landing from outside, followed by the detailed rover's solar-panel deployment. A fade moves the player to an observer view above and behind Opportunity while keeping headset tracking active.
+2. Select **Begin mission** on the briefing panel, then approach each of the three sample stations. Each station has its own instructions, instrument action, and findings that remain visible after completion.
+3. Use the microscopic imager to reveal enlarged hematite "blueberries", run a scripted jarosite mineral analysis, then inspect inconclusive red dust and interpret the evidence.
+4. Choose the supported conclusion: evidence of water. An incorrect life conclusion gives retry feedback. Completing the mission unlocks the button to continue to `Opportunity-Legacy`.
+
+**What Susan added**
+- Detailed rover with the imported panel-unfold animation, wheel rotation during movement, a gentle mast scan, and procedural arm/tool contact and retraction at the samples. Driving pauses during instrument actions.
+- Three separate task canvases, ordered progression, protection against counting a sample twice, and a sample-recorded chime.
+- Mars terrain, rocks, lighting, and sky matched to Legacy, plus far terrain built with the locally imported Mars Landscape 3D pack. Surface grounding uses the highest terrain intersection where terrain sections overlap.
+- Desktop controls: **Enter** begins/advances the mission, **E** investigates a nearby sample, **1** selects water, and **2** selects life for retry feedback. Panels and sample selection also provide interaction controls.
+
+**Files and verification**
+- Runtime: `Assets/Opportunity/Landing/Scripts/LandingSequenceController.cs`. Full setup notes, science sources, credits, and manual checks: [Landing README](NASA-Hackathon/Assets/Opportunity/Landing/README.md).
+- Unity menu: **NasaHack > Landing > Verify playable mission**. The recorded automated Play-mode run **passed**, covering deployment, rover joints/wheels, all three tasks, duplicate prevention, conclusion retry, and transition to Legacy. See [verification report](landing-playmode-verification.txt).
+- Physical controller input, panel readability, arm contact appearance, wheel axes, and headset comfort still need manual device testing.
+
+The activity uses scripted educational readings and illustrative rover motion. The environment intentionally reuses Legacy's Perseverance Valley scenery for continuity; it is not an accurate reconstruction of the Eagle Crater landing site. Legacy's terrain and panorama credits also apply here.
 
 ## InSight launch scene (Dominic)
 
