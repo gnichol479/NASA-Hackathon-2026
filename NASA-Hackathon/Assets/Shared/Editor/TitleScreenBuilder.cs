@@ -295,13 +295,13 @@ namespace NasaHack.EditorTools
             return "OK " + string.Join(", ", Directory.GetFiles(DeltaIIBuilder.PreviewDir, "*.png").Select(Path.GetFileName));
         }
 
-        // The first scene of a mission: its Arrival if there is one, else its Launch, else whatever exists.
+        // The first scene of a mission: its Arrival if there is one, else its Flashback, else its Launch, else whatever exists.
         static string FirstScene(string mission)
         {
             var names = AssetDatabase.FindAssets("t:Scene " + mission)
                 .Select(g => Path.GetFileNameWithoutExtension(AssetDatabase.GUIDToAssetPath(g)))
                 .Where(n => n.StartsWith(mission + "-")).OrderBy(n => n).ToList();
-            foreach (var part in new[] { "Arrival", "Launch" })
+            foreach (var part in new[] { "Arrival", "Flashback", "Launch" })
                 if (names.Contains(mission + "-" + part)) return mission + "-" + part;
             return names.FirstOrDefault();
         }
@@ -321,6 +321,7 @@ namespace NasaHack.EditorTools
                 Debug.Log("[Title] Added to Build Settings: " + path);
             }
             EditorBuildSettings.scenes = scenes.ToArray();
+            AssetDatabase.SaveAssets(); // writes ProjectSettings/EditorBuildSettings.asset to disk now
         }
 
         // A line of text floating in the world, with no panel behind it.

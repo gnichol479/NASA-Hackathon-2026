@@ -49,7 +49,7 @@ Hey team, here's where we are.
 ```
 TitleScreen-Night ─ Opportunity → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen-Night
  (mission choice)                    (present)            (flashback)          (flashback)          (flashback)            (present)
-                  ├ InSight     → InSight-Launch → TitleScreen-Night
+                  ├ InSight     → InSight-Flashback → InSight-Launch → TitleScreen-Night
                   └ Ingenuity   → coming soon
 ```
 
@@ -111,6 +111,18 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - First launch to another planet from the U.S. West Coast. Thick fog hid the rocket from most people watching
 - Landed at Elysium Planitia on November 26, 2018. It listened for marsquakes and measured heat from inside Mars
 
+## InSight flashback (Dominic)
+
+`Assets/InSight/NASA-Headquarters/` is Gibson's clean-room flashback, rebuilt to assemble the **InSight lander** instead of Opportunity. Gibson's `Assets/Opportunity/NASA-Headquarters/` is not changed.
+
+- Scene: `InSight-Flashback.unity`. The lander stands on the assembly podium; its three parts wait on the numbered bench trays
+- Parts: **01 solar arrays** (both round arrays), **02 SEIS seismometer**, **03 robotic arm**. They come from the named groups in `Assets/InSight/Models/InSight-Lander.glb` (`panel_l_root`, `panel_r_root`, `SEIS`, `arm_01`)
+- The arrays (about 6 m across together) and the arm are bigger than a tray, so their tray copies are shown scaled down. Snapped in, they appear full size on the lander
+- Snap all three, run Systems Check, then Ready for Launch loads `InSight-Launch`
+- Every class is renamed (`InSightX`, namespace `LastSignal.InSightFlashback`) so it compiles next to Gibson's. Tools are under **Last Signal > InSight Flashback**. **Verify Assembly Flow** passes
+- **Narration:** captions are InSight's, but there is no voice-over yet (Gibson's MP3s were Opportunity's lines). Generate it with **Last Signal > InSight Flashback > Narration > ElevenLabs Brian** (needs an ElevenLabs API key)
+- The title screen's InSight button starts here, and it is in Build Settings
+
 ## Title screen with mission choice (Dominic)
 
 `Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
@@ -121,10 +133,10 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 | Card | Button loads | Keyboard |
 |---|---|---|
 | Opportunity | `Opportunity-Arrival` | **1** |
-| InSight | `InSight-Launch` | **2** |
+| InSight | `InSight-Flashback` (assembly room), then `InSight-Launch` | **2** |
 | Ingenuity | nothing yet: shows "Coming soon" | |
 
-- **Adding Ingenuity (or more InSight parts):** create a scene named `Ingenuity-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Launch`, else the first by name, and adds it to Build Settings
+- **Adding Ingenuity (or more InSight parts):** create a scene named `Ingenuity-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
 - The builder is `Assets/Shared/Editor/TitleScreenBuilder.cs`. It rebuilds the whole scene, so hand edits to it are lost. Its assets are in `Assets/Shared/Title/`
 
 **Changes outside my own scenes, so everyone knows**
