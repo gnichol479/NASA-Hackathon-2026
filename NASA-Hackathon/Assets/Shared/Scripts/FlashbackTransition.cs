@@ -19,6 +19,8 @@ namespace NasaHack
         public LoadNextScene sceneFlow;
         public float seconds = 1.5f;
         public AudioClip whoosh;
+        [Tooltip("Desktop testing shortcut for Play(). Only in Present mode.")]
+        public KeyCode playKey = KeyCode.F;
 
         Volume volume;
         bool playing;
@@ -33,6 +35,13 @@ namespace NasaHack
         {
             if (startMode == StartMode.Returning) StartCoroutine(Ramp(0f));
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        void Update()
+        {
+            if (startMode == StartMode.Present && Input.GetKeyDown(playKey)) Play();
+        }
+#endif
 
         public void Play()
         {

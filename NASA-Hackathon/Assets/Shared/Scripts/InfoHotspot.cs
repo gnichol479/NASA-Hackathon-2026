@@ -18,6 +18,8 @@ namespace NasaHack
         public TMP_Text bodyText;
         public Transform marker;
         public Vector3 cardOffset = new Vector3(0f, 0.32f, 0f);
+        [Tooltip("Size of the clickable area around the marker, in meters.")]
+        public float hitRadius = 0.15f;
 
         bool pinned;
         Vector3 markerScale;
@@ -29,6 +31,8 @@ namespace NasaHack
             bodyText.text = body;
             card.SetActive(false);
             if (marker != null) markerScale = marker.localScale;
+            var hitArea = GetComponent<SphereCollider>();
+            if (hitArea != null) hitArea.radius = Mathf.Max(hitArea.radius, hitRadius);
 
             var interactable = GetComponent<XRSimpleInteractable>();
             interactable.hoverEntered.AddListener(_ => card.SetActive(true));
@@ -38,6 +42,15 @@ namespace NasaHack
                 pinned = !pinned;
                 card.SetActive(true);
             });
+        }
+
+        // Desktop testing: hover and click with the mouse in the Game view.
+        void OnMouseEnter() => card.SetActive(true);
+        void OnMouseExit() => card.SetActive(pinned);
+        void OnMouseDown()
+        {
+            pinned = !pinned;
+            card.SetActive(true);
         }
 
         // Gentle pulse so players notice the markers.

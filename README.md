@@ -26,17 +26,20 @@ Hey team, here's where we are.
 - All 5 Opportunity scenes exist, are in Build Settings, and are linked in order
 - **Arrival** (Yayo): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
 - **Legacy** (Yayo): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
-- **Launch** (Dominic): detailed Spirit/Opportunity model with textures + rover animations
+- **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
+- **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
+- **Flashback/Origin** (Gibson): rover assembly experience in the facility
 - Shared scripts anyone can reuse (see below)
 
 **Your part**
-- Gibson: Origin (who am I, what was I sent to do)
+- Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
 - Dominic: Launch
 - Susan: Landing + hands-on task (rock grinder revealing hematite "blueberries")
 - Yayo: Arrival + Legacy
 
 **Open decisions**
-- Gibson made `Opportunity/NASA-Headquarters/`, setup made `Opportunity/Origin/` with the `Opportunity-Origin` scene. Pick one folder. Don't rename the scene without telling everyone, the scene chain loads it by name
+- ~~Origin folder~~ Decided: Gibson's `Opportunity-Flashback` (in `NASA-Headquarters/LastSignalFlashback/`) is the Origin part. Arrival links to it and it's in Build Settings. The empty `Opportunity/Origin/` folder can be deleted
+- **Gibson:** hook "Ready for Launch" to the chain. Add a Scene Flow object (LoadNextScene, Next Scene = `Opportunity-Launch`) and add `LoadNextScene.Load` to On Launch Handoff Requested
 - The real rovers were built at JPL (Jet Propulsion Laboratory), not NASA HQ. A JPL clean room is the accurate setting for Origin
 - Quest 2: Quest Link needs a Windows PC with a decent GPU. Who has one for the demo?
 - Who owns the pitch slides?
@@ -44,7 +47,7 @@ Hey team, here's where we are.
 ## Scene flow
 
 ```
-TitleScreen → Opportunity-Arrival → Opportunity-Origin → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen
+TitleScreen → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen
                  (present)            (flashback)          (flashback)          (flashback)            (present)
 ```
 
@@ -52,6 +55,46 @@ Every scene has a **Scene Flow** object already pointing to the next scene. When
 - From a 3D object: add **XR Simple Interactable**, then in its **Select Entered** event drag in Scene Flow → `LoadNextScene.Load`
 - From a UI button: **OnClick** → Scene Flow → `LoadNextScene.Load`
 - After a video or narration: set **Auto Load After** on Scene Flow (seconds)
+
+## Launch scene (Dominic)
+
+`Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity`. You stand on a viewing deck facing east, with the rocket on its pad 90 m ahead and the Atlantic behind it.
+
+**What happens**
+1. Press the red **LAUNCH** button on the console (poke it, grab it, or point and pull the trigger). Keyboard: **L**
+2. T-10 countdown on the big sign to the front-left. Main engine lights at T-3
+3. Liftoff: six boosters fire, smoke covers the pad, the engine glow lights up the whole area, controllers rumble
+4. The rocket pitches east, drops the six spent boosters, and the three air-lit boosters ignite
+5. After about 45 seconds it fades to `Opportunity-Landing` through Scene Flow
+
+**What's in it**
+- **Rocket:** a Delta II 7925H built from generated meshes at real size (about 39 m tall), because there was no free Delta II model. Teal first stage, nine white strap-on boosters, white nose fairing
+- **Surroundings:** launch pad and umbilical tower, the twin pad next door, blockhouse, hangars, water tower, roads with lamps, palms, scrub, beach and ocean
+- **Night sky:** generated stars, Milky Way and a half moon. Floodlights with visible beams light the rocket
+- **Sound:** the engine roar is generated in code, so there is no audio file
+
+**Files**
+- Scripts in `Assets/Shared/Scripts/Launch/`: `DeltaIILaunch` (countdown and flight), `LaunchButton`, `RocketRumble` (the roar), `FallingDebris` (dropped boosters)
+- Everything else is in `Assets/Opportunity/Launch/`: rocket prefab, meshes, materials, textures, post-processing profile
+
+**Rebuilding it**
+- The scene is made by a script, `Assets/Shared/Editor/DeltaIIBuilder*.cs`. Menu: **NasaHack > Opportunity > Build Delta II Launch**. It replaces what it built before and saves the scene, so hand edits to those objects are lost on a rebuild
+- For a daytime launch, set `NightLaunch = false` in `DeltaIIBuilder.Night.cs` and rebuild
+- **NasaHack > Opportunity > Capture Launch Previews** renders stills of the scene to `Library/LaunchPreview/` without entering Play mode
+
+**Heads up for everyone**
+- `Assets/Shared/Settings/URP-Asset.asset`: the per-object light limit went from 4 to 8. The launch needs it so the engine glow reaches the ground. It applies to every scene
+- The rover model's **Import Visibility** is off. The FBX marks all its parts as hidden, so with it on the rover imports invisible
+- The rover itself is not shown in the Launch scene. It is inside the fairing
+
+**Launch facts used in the scene.** Check these against a NASA page before the pitch, as the rule below says:
+- Launched July 7, 2003 at 11:18 p.m. EDT (a night launch) from Cape Canaveral, Space Launch Complex 17B
+- Rocket: Delta II 7925H ("Heavy"), nine strap-on solid boosters, six lit on the pad and three in flight
+- The flight in the scene is sped up. The real timeline is much longer
+
+## Unity tip
+
+**Edit > Preferences > General > Script Changes While Playing → Recompile After Finished Playing.** Otherwise pulling or editing code while in Play mode breaks the running scene with a wall of errors.
 
 ## Getting started
 
@@ -103,7 +146,8 @@ Assets/
 
 **Models**
 - `Mars Exploration Rover - Spirit and Opportunity.fbx`: detailed, textured (from Dominic). Best for close-ups
-- `Opportunity-NASA.glb`: low-poly, used in Arrival/Legacy for now. Will swap to the detailed model
+- Arrival and Legacy now use the detailed model, posed deployed (end of its unfold clip), with 19 leftover Blender parts hidden. Hide those same parts if you use the model elsewhere (list in `OpportunitySceneBuilder.cs`, `KnownHiddenParts`)
+- `Opportunity-NASA.glb`: low-poly backup
 
 ## Git workflow
 
