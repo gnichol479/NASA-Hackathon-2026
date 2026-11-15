@@ -1502,6 +1502,8 @@ MonoBehaviour:
   lander: {fileID: 443832401}
   opportunityRover: {fileID: 949386766}
   landingDuration: 4
+  detailedRoverPrefab: {fileID: 919132149155446097, guid: 8ce3fc48e8894284d962fc31f35ca28e, type: 3}
+  deploymentClip: {fileID: -623603649343465320, guid: 8ce3fc48e8894284d962fc31f35ca28e, type: 3}
   legacyRockMaterial: {fileID: 2100000, guid: 08ffd663e2980aa3897a908b296aae56, type: 2}
   legacySandLayer: {fileID: 8574412962073106934, guid: 67b7dc779036dd3dab9ae716e7d79d20, type: 2}
   roverSizeMeters: 2.3
