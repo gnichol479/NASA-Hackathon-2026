@@ -20,6 +20,8 @@ public class LandingSequenceController : MonoBehaviour
     [Header("Mars landscape")]
     public bool immersiveEnvironment = true;
     [Range(0, 200)] public int sceneryRockCount = 95;
+    public Material legacyRockMaterial;
+    public TerrainLayer legacySandLayer;
     XROrigin origin;
     GameObject canopy, rock, berries;
     RectTransform panel;
@@ -40,16 +42,34 @@ public class LandingSequenceController : MonoBehaviour
             if (terrain.GetComponent<Collider>() != null && terrain.GetComponent<TeleportationArea>() == null)
                 terrain.gameObject.AddComponent<TeleportationArea>();
         RenderSettings.fog = true;
-        RenderSettings.fogColor = new Color(0.55f, 0.32f, 0.20f);
-        RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogDensity = 0.012f;
-        if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_SkyTint"))
+        RenderSettings.fogColor = new Color(0.84f, 0.70f, 0.56f);
+        RenderSettings.fogMode = FogMode.Exponential;
+        RenderSettings.fogDensity = 0.0015f;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
+        RenderSettings.ambientIntensity = 1.1f;
+        foreach (var light in FindObjectsOfType<Light>())
         {
-            var sky = new Material(RenderSettings.skybox);
-            sky.SetColor("_SkyTint", new Color(0.65f, 0.39f, 0.25f));
-            RenderSettings.skybox = sky;
-            assets.Add(sky);
+            if (light.type != LightType.Directional) continue;
+            light.color = new Color(1f, 0.9f, 0.78f);
+            light.intensity = 1.1f;
+            light.shadows = LightShadows.Soft;
+            break;
         }
+        DynamicGI.UpdateEnvironment();
+        if (legacySandLayer != null)
+            foreach (var terrain in Terrain.activeTerrains)
+            {
+                // Keep sculpted heights and painted weights; replace texture layers on a private copy.
+                var data = Instantiate(terrain.terrainData);
+                assets.Add(data);
+                var layers = data.terrainLayers;
+                for (int i = 0; i < layers.Length; i++) layers[i] = legacySandLayer;
+                if (layers.Length == 0) layers = new[] { legacySandLayer };
+                data.terrainLayers = layers;
+                terrain.terrainData = data;
+                var collider = terrain.GetComponent<TerrainCollider>();
+                if (collider != null) collider.terrainData = data;
+            }
         site = Surface(opportunityRover.transform.position);
         if (immersiveEnvironment) BuildEnvironment();
         var renderers = opportunityRover.GetComponentsInChildren<Renderer>(true);
@@ -140,14 +160,6 @@ public class LandingSequenceController : MonoBehaviour
         root.SetParent(transform, false);
         root.position = site;
         root.rotation = Quaternion.identity;
-        RenderSettings.fogColor = new Color(0.59f, 0.39f, 0.27f);
-        RenderSettings.fogDensity = 0.006f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.46f, 0.35f, 0.28f);
-        RenderSettings.ambientEquatorColor = new Color(0.36f, 0.25f, 0.18f);
-        RenderSettings.ambientGroundColor = new Color(0.20f, 0.14f, 0.11f);
-        if (RenderSettings.skybox != null && RenderSettings.skybox.HasProperty("_GroundColor"))
-            RenderSettings.skybox.SetColor("_GroundColor", RenderSettings.fogColor);
 
         // Low rolling terrain surrounds the authored walking area in every direction.
         // This is an illustrative landscape, not a reconstruction of NASA elevation data.
@@ -181,7 +193,7 @@ public class LandingSequenceController : MonoBehaviour
             }
         }
         SceneryMesh("Distant Plains and Ridges", root, vertices, triangles,
-            MakeMaterial(new Color(0.46f, 0.29f, 0.19f)));
+            MakeMaterial(new Color(0.61f, 0.45f, 0.32f)));
 
         // Deterministic, combined low-poly stones: one renderer, no physics overhead.
         vertices.Clear();
@@ -216,13 +228,16 @@ public class LandingSequenceController : MonoBehaviour
             foreach (int index in faces) triangles.Add(start + index);
         }
         SceneryMesh("Scattered Martian Stones", root, vertices, triangles,
-            MakeMaterial(new Color(0.32f, 0.23f, 0.17f)));
+            legacyRockMaterial != null ? legacyRockMaterial : MakeMaterial(new Color(0.55f, 0.43f, 0.32f)));
     }
 
     void SceneryMesh(string name, Transform parent, List<Vector3> vertices, List<int> triangles, Material material)
     {
         var mesh = new Mesh { name = name };
         mesh.SetVertices(vertices);
+        var uv = new List<Vector2>();
+        foreach (var vertex in vertices) uv.Add(new Vector2(vertex.x, vertex.z) * 0.5f);
+        mesh.SetUVs(0, uv);
         mesh.SetTriangles(triangles, 0);
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
