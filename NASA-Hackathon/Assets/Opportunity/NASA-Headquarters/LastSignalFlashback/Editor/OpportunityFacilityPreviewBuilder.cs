@@ -230,6 +230,7 @@ namespace LastSignal.OpportunityFlashback.Editor
                 camera.farClipPlane = 80f;
                 camera.stereoTargetEye = StereoTargetEyeMask.Both;
             }
+            OpportunityQuestSetup.ApplySceneRig(scene);
             EditorSceneManager.MarkSceneDirty(scene);
             Debug.Log("[Last Signal] Scene now contains the shared XR player, tracked camera and controller interactors at the arrival point.");
         }

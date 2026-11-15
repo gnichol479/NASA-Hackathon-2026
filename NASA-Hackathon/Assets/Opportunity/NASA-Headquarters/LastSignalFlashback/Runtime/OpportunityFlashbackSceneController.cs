@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using NasaHack;
 using TMPro;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
 
@@ -21,17 +23,6 @@ namespace LastSignal.OpportunityFlashback
     public sealed class OpportunityFlashbackSceneController : MonoBehaviour
     {
         public const string ElevenLabsBrianVoiceId = "nPczCjzI2devNBz1zQrb";
-
-        private const string IntroCaption =
-            "Opportunity was built to study Martian rocks and soils for clues that water once flowed there.";
-        private const string SolarCaption =
-            "The solar arrays collected sunlight and converted it into electricity for the rover's batteries.";
-        private const string MastCaption =
-            "The camera mast raised stereo cameras for navigation and panoramic views of the terrain.";
-        private const string ArmCaption =
-            "The instrument arm placed science tools against rocks so Opportunity could examine their texture and chemistry.";
-        private const string SystemsCaption =
-            "Power, vision, and science tools are accounted for. Opportunity is ready for launch.";
 
         private static readonly Color Navy = new Color(0.035f, 0.09f, 0.17f, 1f);
         private static readonly Color Blue = new Color(0.04f, 0.24f, 0.43f, 1f);
@@ -56,6 +47,16 @@ namespace LastSignal.OpportunityFlashback
 
         [Header("Narration clips — ElevenLabs Brian")]
         [SerializeField] private string narrationVoiceId = ElevenLabsBrianVoiceId;
+        [TextArea(2, 4)] [SerializeField] private string introNarrationText =
+            "Opportunity was built to study Martian rocks and soils for clues that water once flowed there.";
+        [TextArea(2, 4)] [SerializeField] private string solarPanelNarrationText =
+            "The solar arrays collected sunlight and converted it into electricity for the rover's batteries.";
+        [TextArea(2, 4)] [SerializeField] private string cameraMastNarrationText =
+            "The camera mast raised stereo cameras for navigation and panoramic views of the terrain.";
+        [TextArea(2, 4)] [SerializeField] private string instrumentArmNarrationText =
+            "The instrument arm placed science tools against rocks so Opportunity could examine their texture and chemistry.";
+        [TextArea(2, 4)] [SerializeField] private string systemsCheckNarrationText =
+            "Power, vision, and science tools are accounted for. Opportunity is ready for launch.";
         [SerializeField] private AudioClip introNarration;
         [SerializeField] private AudioClip solarPanelNarration;
         [SerializeField] private AudioClip cameraMastNarration;
@@ -64,7 +65,7 @@ namespace LastSignal.OpportunityFlashback
         [SerializeField] private AudioClip snapFeedbackClip;
 
         [Header("Launch handoff")]
-        [Tooltip("Target scene key sent to the handoff event. This controller does not load that scene.")]
+        [Tooltip("Target scene key sent to the handoff event and loaded after the fade.")]
         [SerializeField] private string launchSceneName = "Opportunity-Launch";
         [SerializeField] private OpportunityLaunchHandoffEvent onLaunchHandoffRequested =
             new OpportunityLaunchHandoffEvent();
@@ -75,6 +76,7 @@ namespace LastSignal.OpportunityFlashback
 
         private GameObject rigInstance;
         private Camera playerCamera;
+        private OpportunityFlashbackXRPlayerSetup playerSetup;
         private AudioSource narrationSource;
         private AudioSource feedbackSource;
         private AudioClip generatedSnapTone;
@@ -95,6 +97,7 @@ namespace LastSignal.OpportunityFlashback
         private bool assemblyStarted = true;
         private bool systemsCheckPassed;
         private bool launchReady;
+        private bool launchTransitionStarted;
 
         public static event Action<string> LaunchHandoffRequested;
 
@@ -295,10 +298,10 @@ namespace LastSignal.OpportunityFlashback
                 // controller rays, direct interactors and locomotion setup.
                 foreach (GameObject sceneRoot in gameObject.scene.GetRootGameObjects())
                 {
-                    foreach (Camera candidate in sceneRoot.GetComponentsInChildren<Camera>(true))
+                    foreach (XROrigin candidate in sceneRoot.GetComponentsInChildren<XROrigin>(true))
                     {
-                        if (!candidate.CompareTag("MainCamera")) continue;
-                        playerCamera = candidate;
+                        if (candidate.Camera == null) continue;
+                        playerCamera = candidate.Camera;
                         rigInstance = candidate.transform.root.gameObject;
                         break;
                     }
@@ -344,6 +347,17 @@ namespace LastSignal.OpportunityFlashback
 
             if (playerCamera != null)
                 playerCamera.tag = "MainCamera";
+
+            // Keep this repair local to the flashback scene. The shared project prefab remains
+            // untouched, while this scene gets floor-level tracking and unambiguous Quest controls.
+            if (!verificationOnly && rigInstance != null && playerCamera != null)
+            {
+                playerSetup =
+                    rigInstance.GetComponent<OpportunityFlashbackXRPlayerSetup>();
+                if (playerSetup == null)
+                    playerSetup = rigInstance.AddComponent<OpportunityFlashbackXRPlayerSetup>();
+                playerSetup.Configure(rigInstance, playerCamera);
+            }
         }
 
         private void BuildNarrationCanvas()
@@ -365,8 +379,8 @@ namespace LastSignal.OpportunityFlashback
             GameObject groupObject = new GameObject("Caption Card", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
             groupObject.transform.SetParent(canvasObject.transform, false);
             RectTransform groupRect = groupObject.GetComponent<RectTransform>();
-            groupRect.anchorMin = new Vector2(0.15f, 0.06f);
-            groupRect.anchorMax = new Vector2(0.85f, 0.23f);
+            groupRect.anchorMin = new Vector2(0.15f, 0.28f);
+            groupRect.anchorMax = new Vector2(0.85f, 0.45f);
             groupRect.offsetMin = Vector2.zero;
             groupRect.offsetMax = Vector2.zero;
             Image background = groupObject.GetComponent<Image>();
@@ -429,12 +443,15 @@ namespace LastSignal.OpportunityFlashback
         private IEnumerator PlayFlashbackEntry()
         {
             ScreenFader fader = ScreenFader.Instance;
+            if (fader != null) fader.SetAlpha(1f);
+            while (playerSetup != null && !playerSetup.TrackingReady)
+                yield return null;
             if (fader != null)
             {
                 fader.SetAlpha(1f);
                 yield return fader.Fade(0f, 1.2f);
             }
-            PresentNarration(IntroCaption, introNarration);
+            PresentNarration(introNarrationText, introNarration);
         }
 
         public void HandlePartSnapped(OpportunityAssemblyPart part)
@@ -451,13 +468,13 @@ namespace LastSignal.OpportunityFlashback
             switch (part.Kind)
             {
                 case OpportunityPartKind.SolarPanel:
-                    PresentNarration(SolarCaption, solarPanelNarration);
+                    PresentNarration(solarPanelNarrationText, solarPanelNarration);
                     break;
                 case OpportunityPartKind.CameraMast:
-                    PresentNarration(MastCaption, cameraMastNarration);
+                    PresentNarration(cameraMastNarrationText, cameraMastNarration);
                     break;
                 case OpportunityPartKind.InstrumentArm:
-                    PresentNarration(ArmCaption, instrumentArmNarration);
+                    PresentNarration(instrumentArmNarrationText, instrumentArmNarration);
                     break;
             }
 
@@ -493,7 +510,7 @@ namespace LastSignal.OpportunityFlashback
             }
 
             PlayFeedbackTone();
-            PresentNarration(SystemsCaption, systemsCheckNarration);
+            PresentNarration(systemsCheckNarrationText, systemsCheckNarration);
             UpdateStatus();
             return true;
         }
@@ -554,6 +571,7 @@ namespace LastSignal.OpportunityFlashback
             assemblyStarted = true;
             systemsCheckPassed = false;
             launchReady = false;
+            launchTransitionStarted = false;
             if (systemsCheckButton != null)
                 systemsCheckButton.SetInteractable(false);
             if (readyButton != null)
@@ -562,18 +580,41 @@ namespace LastSignal.OpportunityFlashback
             PresentNarration("Assembly reset. Refit the solar panel, camera mast, and instrument arm.", null);
         }
 
-        /// <summary>Emits the launch handoff only after all parts and the final systems check pass.</summary>
+        /// <summary>Emits the launch handoff and transitions after all parts and systems checks pass.</summary>
         public bool RequestLaunchHandoff()
         {
-            if (!launchReady || !systemsCheckPassed || !AllPartsSnapped())
+            if (!launchReady || !systemsCheckPassed || !AllPartsSnapped() || launchTransitionStarted)
             {
                 PresentNarration("Ready for Launch stays locked until the systems check passes.", null);
                 return false;
             }
 
+            if (Application.isPlaying && !Application.CanStreamedLevelBeLoaded(launchSceneName))
+            {
+                PresentNarration("The launch scene is not included in this build.", null);
+                Debug.LogError("[Opportunity Flashback] Cannot load launch scene '" + launchSceneName + "'. Add it to Build Settings.", this);
+                return false;
+            }
+
+            if (Application.isPlaying)
+            {
+                launchTransitionStarted = true;
+                if (readyButton != null) readyButton.SetInteractable(false);
+            }
+
             LaunchHandoffRequested?.Invoke(launchSceneName);
             onLaunchHandoffRequested?.Invoke();
+            if (Application.isPlaying)
+                StartCoroutine(FadeAndLoadLaunchScene());
             return true;
+        }
+
+        private IEnumerator FadeAndLoadLaunchScene()
+        {
+            ScreenFader fader = ScreenFader.Instance;
+            if (fader != null)
+                yield return fader.Fade(1f, 1.1f);
+            SceneManager.LoadScene(launchSceneName, LoadSceneMode.Single);
         }
 
         private bool AllPartsSnapped()

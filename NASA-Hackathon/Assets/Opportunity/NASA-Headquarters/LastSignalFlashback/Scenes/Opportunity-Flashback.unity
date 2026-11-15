@@ -175,11 +175,21 @@ MonoBehaviour:
   finalOpportunityModelScale: 1
   finalOpportunityModelEuler: {x: 0, y: 180, z: 0}
   narrationVoiceId: nPczCjzI2devNBz1zQrb
-  introNarration: {fileID: 0}
-  solarPanelNarration: {fileID: 0}
-  cameraMastNarration: {fileID: 0}
-  instrumentArmNarration: {fileID: 0}
-  systemsCheckNarration: {fileID: 0}
+  introNarrationText: Opportunity was built to study Martian rocks and soils for
+    clues that water once flowed there.
+  solarPanelNarrationText: The solar arrays collected sunlight and converted it into
+    electricity for the rover's batteries.
+  cameraMastNarrationText: The camera mast raised stereo cameras for navigation and
+    panoramic views of the terrain.
+  instrumentArmNarrationText: The instrument arm placed science tools against rocks
+    so Opportunity could examine their texture and chemistry.
+  systemsCheckNarrationText: Power, vision, and science tools are accounted for.
+    Opportunity is ready for launch.
+  introNarration: {fileID: 8300000, guid: 7f31782349b8e574b8291625bce395a2, type: 3}
+  solarPanelNarration: {fileID: 8300000, guid: 331b41735ef8c334fba43f36d6db8c6b, type: 3}
+  cameraMastNarration: {fileID: 8300000, guid: e95529b89241fa142b4f4c8c52d77925, type: 3}
+  instrumentArmNarration: {fileID: 8300000, guid: 8da212e7628446548b48310790c3da6b, type: 3}
+  systemsCheckNarration: {fileID: 8300000, guid: e151bda75ec17b044a796f7c78f315f2, type: 3}
   snapFeedbackClip: {fileID: 0}
   launchSceneName: Opportunity-Launch
   onLaunchHandoffRequested:
@@ -8697,6 +8707,58 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1232370663608812309, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_TurnAmount
+      value: 30
+      objectReference: {fileID: 0}
+    - target: {fileID: 1232370663608812309, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_DebounceTime
+      value: 0.45
+      objectReference: {fileID: 0}
+    - target: {fileID: 1232370663608812309, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_EnableTurnAround
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1683250406071206316, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_RenderPostProcessing
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135265, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_MaxHeight
+      value: 2.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135265, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_MinHeight
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_Height
+      value: 1.65
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_Radius
+      value: 0.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_Center.y
+      value: 0.84499997
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_SkinWidth
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_StepOffset
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2279574022381135268, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_MinMoveDistance
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5322556041931924077, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.65
+      objectReference: {fileID: 0}
     - target: {fileID: 5322556042142907977, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
       propertyPath: far clip plane
       value: 80
@@ -8705,14 +8767,45 @@ PrefabInstance:
       propertyPath: near clip plane
       value: 0.05
       objectReference: {fileID: 0}
+    - target: {fileID: 5322556042142907980, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5322556042142907980, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5322556042142907980, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5475965193783135487, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_MoveSpeed
+      value: 1.25
+      objectReference: {fileID: 0}
     - target: {fileID: 5889039053617789140, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
       propertyPath: m_Name
       value: Flashback Player - shared tracked XR rig
       objectReference: {fileID: 0}
+    - target: {fileID: 6450962338267358866, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_CameraYOffset
+      value: 1.65
+      objectReference: {fileID: 0}
+    - target: {fileID: 6450962338267358866, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_RequestedTrackingOriginMode
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7169655331608485636, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5889039053617789140, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1353748340}
   m_SourcePrefab: {fileID: 100100000, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
 --- !u!1 &413986461
 GameObject:
@@ -30328,6 +30421,23 @@ Transform:
   - {fileID: 639986171}
   m_Father: {fileID: 606921335}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1353748338 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5889039053617789140, guid: f193de67ebd72fdcd83924ba26a4b1c6, type: 3}
+  m_PrefabInstance: {fileID: 411152525}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1353748340
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1353748338}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb10321f3fa84d3b9b6c79d15e87d548, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1364085507
 GameObject:
   m_ObjectHideFlags: 0
