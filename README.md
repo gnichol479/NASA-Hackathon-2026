@@ -213,6 +213,16 @@ Sources:
 - https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/
 - 3D models: https://science.nasa.gov/3d-resources/
 
+## Data credits (must appear on the project page)
+
+The Mars environment in Title, Arrival and Legacy is built from real NASA data:
+
+- **Terrain:** HiRISE digital terrain model `DTEEC_018701_1775_018846_1775_U01` (1 m posts), cropped 3.2 km around Opportunity's final position (2.336 S, 354.651 E, Perseverance Valley). Credit: **NASA/JPL/University of Arizona/USGS**. https://www.uahirise.org/dtm/ESP_018701_1775
+- **Sky:** Opportunity's last 360-degree panorama, PIA22909 (true color), taken May 13 to June 10, 2018 from the same spot. Credit: **NASA/JPL-Caltech/Cornell/ASU**. https://www.jpl.nasa.gov/images/pia22909-opportunity-legacy-pan-true-color/
+- **Rover models:** NASA 3D Resources. https://science.nasa.gov/3d-resources/
+
+Rebuild the environment any time with **NasaHack > Build Mars Environment (Title, Arrival, Legacy)**. Source data and the generated heightmap live in `Assets/Shared/Mars/`. To turn the panorama so it lines up with the terrain, change **Rotation** on `Assets/Shared/Mars/Mars Sky (PIA22909).mat`.
+
 ## Known harmless errors
 
 - **"The only standalone targets supported are Windows x64 and OSX with OpenXR"**: shows on Linux. The simulator still works
