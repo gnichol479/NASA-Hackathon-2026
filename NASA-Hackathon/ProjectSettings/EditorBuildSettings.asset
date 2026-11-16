@@ -47,6 +47,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity
     guid: 943f06822918bd64fbb90ff502302a02
+  - enabled: 1
+    path: Assets/Ingenuity/Arrival/Scenes/Ingenuity-Arrival.unity
+    guid: 4b49cbed6206c9b93bbca67b813a3336
+  - enabled: 1
+    path: Assets/Ingenuity/Legacy/Scenes/Ingenuity-Legacy.unity
+    guid: b35fd9e35a7e8b84bae80d37a69c4eb5
+  - enabled: 1
+    path: Assets/Ingenuity/Landing/Scenes/Ingenuity-Landing.unity
+    guid: e3a64e0823e0d832bae2a8ff85b3594b
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 11869147fc86e06a692ec91f4e4f958a, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: ec8c2195195c8f3e5b71021be2501364, type: 2}

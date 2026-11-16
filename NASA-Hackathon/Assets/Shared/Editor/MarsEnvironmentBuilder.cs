@@ -43,6 +43,9 @@ namespace NasaHack.EditorTools
             "Assets/Opportunity/Arrival/Scenes/Opportunity-Arrival.unity",
             "Assets/Opportunity/Legacy/Scenes/Opportunity-Legacy.unity",
             "Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity",
+            "Assets/Ingenuity/Arrival/Scenes/Ingenuity-Arrival.unity",
+            "Assets/Ingenuity/Legacy/Scenes/Ingenuity-Legacy.unity",
+            "Assets/Ingenuity/Landing/Scenes/Ingenuity-Landing.unity",
         };
 
         // Must match OpportunitySceneBuilder.RoverPosition: the rover pixel of the DTM lands here.

@@ -252,7 +252,7 @@ namespace NasaHack.EditorTools
 
         // ---------- Shared pieces ----------
 
-        static NarrationPanel CreateNarration(Vector3 position, bool hideButtonOnLastBeat)
+        internal static NarrationPanel CreateNarration(Vector3 position, bool hideButtonOnLastBeat)
         {
             var panel = UiFactory.CreatePanel("Narration Panel", null, 760f);
             Place(panel, position);
@@ -266,12 +266,12 @@ namespace NasaHack.EditorTools
             return narration;
         }
 
-        static NarrationPanel.Beat Beat(string title, string text, bool waitForEvent = false, GameObject showWhileActive = null)
+        internal static NarrationPanel.Beat Beat(string title, string text, bool waitForEvent = false, GameObject showWhileActive = null)
         {
             return new NarrationPanel.Beat { title = title, text = text, waitForEvent = waitForEvent, showWhileActive = showWhileActive };
         }
 
-        static void Place(Transform panel, Vector3 position)
+        internal static void Place(Transform panel, Vector3 position)
         {
             panel.position = position;
             UiFactory.FacePoint(panel, Head);
@@ -521,7 +521,7 @@ namespace NasaHack.EditorTools
             return new Vector3(fallback.center.x, fallback.center.y + 0.2f * fallback.size.y, fallback.center.z);
         }
 
-        static void AddHotspot(Transform parent, Material mat, string title, string body, Vector3 position)
+        internal static void AddHotspot(Transform parent, Material mat, string title, string body, Vector3 position)
         {
             var go = new GameObject("Hotspot - " + title);
             go.transform.SetParent(parent, true);
@@ -543,7 +543,7 @@ namespace NasaHack.EditorTools
             InfoHotspot.BuildCard(hotspot);
         }
 
-        static Bounds WorldBounds(GameObject go)
+        internal static Bounds WorldBounds(GameObject go)
         {
             var renderers = go.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
             var b = renderers[0].bounds;
@@ -583,7 +583,7 @@ namespace NasaHack.EditorTools
             return mat;
         }
 
-        static Material HotspotMaterial()
+        internal static Material HotspotMaterial()
         {
             var path = SettingsDir + "/Hotspot.mat";
             var mat = AssetDatabase.LoadAssetAtPath<Material>(path);

@@ -47181,10 +47181,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 428b2917addc14e61b89eee2e153ba93, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nextScene: TitleScreen-Night
+  nextScene: Ingenuity-Landing
   fadeSeconds: 0.75
   autoLoadAfter: 0
   debugKey: 110
+  requireDebugKeyForDemoSkip: 0
 --- !u!4 &952129072
 Transform:
   m_ObjectHideFlags: 0
@@ -53112,7 +53113,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 300
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -95811,7 +95812,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 90
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -99530,7 +99531,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 56
     m_Alignment: 1
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -100126,7 +100127,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 100
     m_Alignment: 3
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -105282,7 +105283,7 @@ MonoBehaviour:
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 56
     m_Alignment: 0
     m_AlignByGeometry: 0
     m_RichText: 1
