@@ -2,7 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace NasaHack
 {
@@ -22,6 +24,9 @@ namespace NasaHack
         [Tooltip("Legacy desktop shortcut. Any keyboard key also skips scenes with one unambiguous next destination.")]
         public KeyCode debugKey = KeyCode.N;
 
+        [Tooltip("Interactive scenes can reserve gameplay keys and use only the debug key to skip.")]
+        public bool requireDebugKeyForDemoSkip;
+
         static bool fadeInPending;
         static float fadeInSeconds;
         static int lastKeyboardSkipFrame = -1;
@@ -38,47 +43,45 @@ namespace NasaHack
             if (autoLoadAfter > 0f) Invoke(nameof(Load), autoLoadAfter);
         }
 
-#if ENABLE_LEGACY_INPUT_MANAGER
         void Update()
         {
-            if (Input.GetKeyDown(debugKey) && FindObjectOfType<DeltaIILaunch>() == null)
+            if (FindObjectOfType<DeltaIILaunch>() != null)
+                return;
+
+            if (DemoSkipInput.WasKeyPressedThisFrame(debugKey))
             {
                 if (lastKeyboardSkipFrame == Time.frameCount) return;
                 lastKeyboardSkipFrame = Time.frameCount;
-                Load();
+                LoadSelectedOrSingleDestination();
                 return;
             }
 
-            if (!DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame() ||
-                lastKeyboardSkipFrame == Time.frameCount ||
-                FindObjectOfType<DeltaIILaunch>() != null)
+            if (requireDebugKeyForDemoSkip || !DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame() ||
+                lastKeyboardSkipFrame == Time.frameCount)
                 return;
 
             lastKeyboardSkipFrame = Time.frameCount;
-            LoadSingleDestinationForDemo();
+            LoadSelectedOrSingleDestination();
         }
-#elif ENABLE_INPUT_SYSTEM
-        void Update()
-        {
-            if (!DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame() ||
-                lastKeyboardSkipFrame == Time.frameCount ||
-                FindObjectOfType<DeltaIILaunch>() != null)
-                return;
 
-            lastKeyboardSkipFrame = Time.frameCount;
-            LoadSingleDestinationForDemo();
-        }
-#endif
-
-        static void LoadSingleDestinationForDemo()
+        void LoadSelectedOrSingleDestination()
         {
             LoadNextScene[] flows = FindObjectsOfType<LoadNextScene>();
             var destinations = new HashSet<string>(
                 flows.Where(flow => flow != null && !string.IsNullOrWhiteSpace(flow.nextScene))
                     .Select(flow => flow.nextScene));
 
-            // Menus with several valid destinations remain controlled by their own buttons.
-            if (destinations.Count != 1) return;
+            if (destinations.Count == 0) return;
+            if (destinations.Count > 1)
+            {
+                // On a multi-route menu, advance the currently selected option if there is one.
+                GameObject selected = EventSystem.current != null
+                    ? EventSystem.current.currentSelectedGameObject : null;
+                Button selectedButton = selected != null ? selected.GetComponentInParent<Button>() : null;
+                if (selectedButton != null && selectedButton.interactable)
+                    selectedButton.onClick.Invoke();
+                return;
+            }
 
             string target = destinations.First();
             LoadNextScene flow = flows.FirstOrDefault(candidate => candidate != null && candidate.nextScene == target);

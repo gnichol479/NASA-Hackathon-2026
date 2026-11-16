@@ -9,6 +9,23 @@ namespace NasaHack
     /// <summary>Keyboard-only input helper for the desktop demo shortcuts.</summary>
     public static class DemoSkipInput
     {
+        public static bool WasKeyPressedThisFrame(KeyCode keyCode)
+        {
+#if ENABLE_INPUT_SYSTEM
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && Enum.TryParse(keyCode.ToString(), true, out Key inputKey)
+                && keyboard[inputKey].wasPressedThisFrame)
+                return true;
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+            if (keyCode != KeyCode.None && Input.GetKeyDown(keyCode))
+                return true;
+#endif
+
+            return false;
+        }
+
         public static bool WasAnyKeyboardKeyPressedThisFrame()
         {
 #if ENABLE_INPUT_SYSTEM

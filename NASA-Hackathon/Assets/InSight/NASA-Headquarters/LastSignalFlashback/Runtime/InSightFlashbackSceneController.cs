@@ -130,6 +130,11 @@ namespace LastSignal.InSightFlashback
         {
             if (captionGroup != null && Time.unscaledTime > captionHideTime)
                 captionGroup.alpha = Mathf.MoveTowards(captionGroup.alpha, 0f, Time.unscaledDeltaTime * 2f);
+
+            // Desktop demo advance is available only after the assembly lock is legitimately cleared.
+            if (launchReady && systemsCheckPassed && AllPartsSnapped() && !launchTransitionStarted &&
+                DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame())
+                RequestLaunchHandoff();
         }
 
         private void Start()
@@ -691,18 +696,9 @@ namespace LastSignal.InSightFlashback
                 captionGroup.alpha = 1f;
             if (Application.isPlaying && narrationSource != null)
             {
-                narrationSource.Stop();
-                if (clip != null)
-                {
-                    if (clip.loadState == AudioDataLoadState.Unloaded)
-                        clip.LoadAudioData();
-                    narrationSource.enabled = true;
-                    narrationSource.volume = 1f;
-                    narrationSource.mute = false;
-                    narrationSource.spatialBlend = 0f;
-                    narrationSource.clip = clip;
-                    narrationSource.Play();
-                }
+                if (clip != null && clip.loadState == AudioDataLoadState.Unloaded)
+                    clip.LoadAudioData();
+                NarrationPlayback.Play(narrationSource, clip);
             }
         }
 

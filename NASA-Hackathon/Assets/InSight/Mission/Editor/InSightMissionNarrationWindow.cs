@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using LastSignal.InSightFlashback;
 using LastSignal.InSightMission;
+using NasaHack;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -64,11 +65,13 @@ namespace LastSignal.InSightMission.EditorTools
             EditorGUILayout.LabelField("ElevenLabs Brian — InSight", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("Voice ID: " + InSightMissionSceneController.BrianVoiceId, EditorStyles.miniLabel);
             EditorGUILayout.HelpBox("Generates only clips with empty scene slots. The secret key is kept in this window's memory and is not saved to the project or Editor preferences.", MessageType.Info);
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+                EditorGUILayout.HelpBox("ElevenLabs is temporarily disabled. Captions remain available and no clips will be generated until it is re-enabled from Last Signal > ElevenLabs.", MessageType.Warning);
             apiKey = EditorGUILayout.PasswordField("ElevenLabs secret key", apiKey);
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUI.enabled = !busy;
+                GUI.enabled = !busy && ElevenLabsFeatureSettings.IsEnabled;
                 if (GUILayout.Button("Generate missing InSight clips", GUILayout.Height(32f))) BeginGenerate();
                 GUI.enabled = busy;
                 if (GUILayout.Button("Cancel", GUILayout.Width(92f), GUILayout.Height(32f))) CancelGeneration();
@@ -86,6 +89,13 @@ namespace LastSignal.InSightMission.EditorTools
 
         void BeginGenerate()
         {
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                status = "ElevenLabs is temporarily disabled. No request was sent.";
+                Repaint();
+                return;
+            }
+
             // Copying a key from the dashboard often includes a trailing line break; HTTP
             // headers reject those characters, so normalize it before sending the request.
             apiKey = NormalizeHeaderValue(apiKey);
@@ -219,6 +229,13 @@ namespace LastSignal.InSightMission.EditorTools
 
         void GenerateNext()
         {
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                CancelGeneration();
+                status = "ElevenLabs was disabled. Any completed clips were kept; no further requests were sent.";
+                return;
+            }
+
             if (jobs == null || jobs.Count == 0)
             {
                 busy = false;

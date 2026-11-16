@@ -25,11 +25,24 @@ namespace NasaHack
         public static void Play(AudioSource source, AudioClip clip)
         {
             if (source == null || clip == null) return;
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                StopAll();
+                source.Stop();
+                return;
+            }
             if (current != null && current != source) current.Stop();
             current = source;
             source.Stop();
             source.clip = clip;
             source.Play();
+        }
+
+        public static void StopAll()
+        {
+            if (current != null)
+                current.Stop();
+            current = null;
         }
     }
 }

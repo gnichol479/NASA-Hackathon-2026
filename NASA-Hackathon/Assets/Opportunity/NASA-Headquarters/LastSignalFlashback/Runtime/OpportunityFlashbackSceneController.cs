@@ -130,6 +130,11 @@ namespace LastSignal.OpportunityFlashback
         {
             if (captionGroup != null && Time.unscaledTime > captionHideTime)
                 captionGroup.alpha = Mathf.MoveTowards(captionGroup.alpha, 0f, Time.unscaledDeltaTime * 2f);
+
+            // Desktop demo advance is available only after the assembly lock is legitimately cleared.
+            if (launchReady && systemsCheckPassed && AllPartsSnapped() && !launchTransitionStarted &&
+                DemoSkipInput.WasAnyKeyboardKeyPressedThisFrame())
+                RequestLaunchHandoff();
         }
 
         private void Start()
@@ -646,14 +651,7 @@ namespace LastSignal.OpportunityFlashback
             if (captionGroup != null)
                 captionGroup.alpha = 1f;
             if (Application.isPlaying && narrationSource != null)
-            {
-                narrationSource.Stop();
-                if (clip != null)
-                {
-                    narrationSource.clip = clip;
-                    narrationSource.Play();
-                }
-            }
+                NarrationPlayback.Play(narrationSource, clip);
         }
 
         private void PlayFeedbackTone()

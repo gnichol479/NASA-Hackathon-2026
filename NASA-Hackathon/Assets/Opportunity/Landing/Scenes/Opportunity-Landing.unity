@@ -28280,6 +28280,7 @@ MonoBehaviour:
   fadeSeconds: 0.75
   autoLoadAfter: 0
   debugKey: 110
+  requireDebugKeyForDemoSkip: 1
 --- !u!4 &2052486110
 Transform:
   m_ObjectHideFlags: 0

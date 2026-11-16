@@ -10,6 +10,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+using NasaHack;
 
 namespace LastSignal.IngenuityFlashback.EditorTools
 {
@@ -70,6 +71,8 @@ namespace LastSignal.IngenuityFlashback.EditorTools
             EditorGUILayout.HelpBox(
                 "This window generates the five flashback clips only. For the complete Ingenuity scenario, use Last Signal > Ingenuity > ElevenLabs Brian - Flashback + Launch to include the seven launch clips too.",
                 MessageType.None);
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+                EditorGUILayout.HelpBox("ElevenLabs is temporarily disabled. Captions remain available; no requests or audio previews will run until it is re-enabled from Last Signal > ElevenLabs.", MessageType.Warning);
 
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
@@ -84,7 +87,7 @@ namespace LastSignal.IngenuityFlashback.EditorTools
                 return;
             }
 
-            using (new EditorGUI.DisabledScope(busy))
+            using (new EditorGUI.DisabledScope(busy || !ElevenLabsFeatureSettings.IsEnabled))
             {
                 apiKey = EditorGUILayout.PasswordField("ElevenLabs API key", apiKey);
                 EditorGUILayout.Space(6);
@@ -130,7 +133,7 @@ namespace LastSignal.IngenuityFlashback.EditorTools
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.ObjectField("Assigned clip", clip.objectReferenceValue, typeof(AudioClip), false);
             EditorGUILayout.BeginHorizontal();
-            using (new EditorGUI.DisabledScope(busy || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(text.stringValue)))
+            using (new EditorGUI.DisabledScope(busy || !ElevenLabsFeatureSettings.IsEnabled || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(text.stringValue)))
             {
                 if (GUILayout.Button("Generate", GUILayout.Width(90)))
                 {
@@ -138,7 +141,7 @@ namespace LastSignal.IngenuityFlashback.EditorTools
                     GenerateOne(cue, text.stringValue, apiKey, FindController());
                 }
             }
-            using (new EditorGUI.DisabledScope(clip.objectReferenceValue == null))
+            using (new EditorGUI.DisabledScope(!ElevenLabsFeatureSettings.IsEnabled || clip.objectReferenceValue == null))
             {
                 if (GUILayout.Button("Play", GUILayout.Width(60)))
                     PlayPreview((AudioClip)clip.objectReferenceValue);
@@ -224,6 +227,13 @@ namespace LastSignal.IngenuityFlashback.EditorTools
         private void Generate(Cue cue, string text, string key,
             IngenuityFlashbackSceneController controller, Action<AudioClip> completed)
         {
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                status = "ElevenLabs is temporarily disabled. No request was sent.";
+                completed(null);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(text))
             {
                 status = "An API key and narration text are required.";
@@ -353,7 +363,7 @@ namespace LastSignal.IngenuityFlashback.EditorTools
 
         private static void PlayPreview(AudioClip clip)
         {
-            if (clip == null) return;
+            if (clip == null || !ElevenLabsFeatureSettings.IsEnabled) return;
             Type audioUtil = AppDomain.CurrentDomain.GetAssemblies()
                 .Select(assembly => assembly.GetType("UnityEditor.AudioUtil", false))
                 .FirstOrDefault(type => type != null);

@@ -85,13 +85,16 @@ namespace NasaHack.EditorTools
                     : "Creates offline, assignable voice clips for the authored story panels, mission cards, rover hotspots, landing discoveries, and launch milestones. The API key is kept only in this window's memory. Each generated caption is sent to ElevenLabs; no live API call is made in the game.",
                 MessageType.Info);
 
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+                EditorGUILayout.HelpBox("ElevenLabs is temporarily disabled. Captions remain available, and no clips will be generated until it is re-enabled from Last Signal > ElevenLabs.", MessageType.Warning);
+
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
                 EditorGUILayout.HelpBox("Exit Play mode before generating or assigning narration.", MessageType.Warning);
                 return;
             }
 
-            using (new EditorGUI.DisabledScope(busy))
+            using (new EditorGUI.DisabledScope(busy || !ElevenLabsFeatureSettings.IsEnabled))
             {
                 apiKey = EditorGUILayout.PasswordField("ElevenLabs API key", apiKey);
                 maxCharactersPerRun = EditorGUILayout.IntField("Character budget this run", maxCharactersPerRun);
@@ -120,6 +123,13 @@ namespace NasaHack.EditorTools
 
         void BeginBatch()
         {
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                status = "ElevenLabs is temporarily disabled. Re-enable it from Last Signal > ElevenLabs before generating clips.";
+                Repaint();
+                return;
+            }
+
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             originalScenePath = SceneManager.GetActiveScene().path;
@@ -421,6 +431,12 @@ namespace NasaHack.EditorTools
 
         void Generate(Cue cue, Action<bool> completed)
         {
+            if (!ElevenLabsFeatureSettings.IsEnabled)
+            {
+                StopBatch("ElevenLabs was disabled. Any completed clips were kept; no further requests were sent.");
+                return;
+            }
+
             string folder = Path.GetDirectoryName(cue.AssetPath)?.Replace('\\', '/');
             if (string.IsNullOrEmpty(folder))
             {

@@ -6,6 +6,9 @@ using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 // Demo additions are built only in Play mode; existing scene references stay intact.
 public class LandingSequenceController : MonoBehaviour
@@ -48,6 +51,14 @@ public class LandingSequenceController : MonoBehaviour
     [Min(0.1f)] public float roverDriveSpeed = 1.5f;
     [Min(5f)] public float roverSteeringDegreesPerSecond = 75f;
     [Min(0.5f)] public float sampleInteractionDistance = 2.4f;
+    [Header("Photo camera controls")]
+    [Min(5f)] public float photoOrbitDegreesPerSecond = 65f;
+    [Min(0.1f)] public float photoZoomMetersPerSecond = 2.5f;
+    [Min(5f)] public float photoPitchDegreesPerSecond = 35f;
+    [Range(-30f, 0f)] public float photoMinimumPitch = -12f;
+    [Range(0f, 75f)] public float photoMaximumPitch = 42f;
+    [Min(1f)] public float photoMinimumDistance = 1.8f;
+    [Min(3f)] public float photoMaximumDistance = 9f;
     float deployedTime, compactTime;
     Transform armTip, toolSpinner, mast;
     Vector3 roverForwardLocal = Vector3.forward;
@@ -97,9 +108,15 @@ public class LandingSequenceController : MonoBehaviour
     bool roverFollowInitialized;
     float roverPivotHeight;
     bool roverDriveEnabled;
+    bool photoCameraMode;
+    float photoPitch;
+#if ENABLE_INPUT_SYSTEM
+    InputAction photoModeToggleAction;
+#endif
     int activeTask;
     readonly RectTransform[] taskPanels = new RectTransform[3];
     readonly TextMeshProUGUI[] taskBodies = new TextMeshProUGUI[3];
+    readonly TextMeshProUGUI[] photoViewButtonLabels = new TextMeshProUGUI[3];
     readonly GameObject[] taskButtons = new GameObject[3];
     readonly List<Object> assets = new List<Object>();
 
@@ -353,9 +370,9 @@ public class LandingSequenceController : MonoBehaviour
         var offsets = new[] { new Vector3(-2.6f,0f,4f), new Vector3(2.6f,0f,7f), new Vector3(-2f,0f,10f) };
         var titles = new[] { "Look closer at the rock", "Read the mineral evidence", "Build your conclusion" };
         var instructions = new[] {
-            "TASK 1: MICROSCOPIC IMAGER\nLeft stick drives; right stick steers. Move within 2.4 m of Sample 1, then press Scan Sample with the trigger or select the rock with grip.\nDesktop: WASD / arrows drive; E scans.",
-            "TASK 2: MINERAL ANALYSIS\nDrive to Sample 2 and press Scan Sample with the trigger or select the rock with grip. This simplified reading is inspired by Opportunity's spectrometer.\nDesktop: WASD / arrows drive; E scans.",
-            "TASK 3: COMPARE THE EVIDENCE\nDrive to Sample 3 and scan its red dust. Press Scan Sample with the trigger or select the rock with grip, then choose the conclusion.\nDesktop: WASD / arrows drive; E scans."
+            "TASK 1: MICROSCOPIC IMAGER\nLeft stick drives; right stick steers. Move within 2.4 m of Sample 1, then press Scan Sample with the trigger or select the rock with grip.\nPhoto view: B toggles; right stick orbits, left stick zooms. Desktop: C toggles; A/D orbit, W/S zoom, Q/E tilt. E scans.",
+            "TASK 2: MINERAL ANALYSIS\nDrive to Sample 2 and press Scan Sample with the trigger or select the rock with grip. This simplified reading is inspired by Opportunity's spectrometer.\nPhoto view: B toggles; right stick orbits, left stick zooms. Desktop: C toggles; A/D orbit, W/S zoom, Q/E tilt. E scans.",
+            "TASK 3: COMPARE THE EVIDENCE\nDrive to Sample 3 and scan its red dust. Press Scan Sample with the trigger or select the rock with grip, then choose the conclusion.\nPhoto view: B toggles; right stick orbits, left stick zooms. Desktop: C toggles; A/D orbit, W/S zoom, Q/E tilt. E scans."
         };
         var stone = legacyRockMaterial != null ? legacyRockMaterial : MakeMaterial(new Color(0.48f,0.29f,0.19f));
         var mineral = MakeMaterial(new Color(0.19f,0.17f,0.16f));
@@ -383,6 +400,8 @@ public class LandingSequenceController : MonoBehaviour
             clues[i].SetActive(false);
             taskPanels[i]=MissionPanel("Task "+(i+1)+" Canvas", "WATER INVESTIGATION / "+(i+1)+" OF 3",titles[i],position+new Vector3(1.4f,0f,0.4f),out taskBodies[i]);
             taskBodies[i].text=instructions[i];
+            var photoButton=UiFactory.AddButton(taskPanels[i],"Photo view","Photo view: OFF",out photoViewButtonLabels[i]);
+            photoButton.onClick.AddListener(TogglePhotoCameraMode);
             var action=UiFactory.AddButton(taskPanels[i],"Use instrument","Scan Sample",out _);
             action.onClick.AddListener(()=>ScanRock(index));
             var next=UiFactory.AddButton(taskPanels[i],"Next task",i==0?"Record spheres / next task":i==1?"Record mineral / next task":"Continue to legacy",out _);
@@ -516,6 +535,12 @@ public class LandingSequenceController : MonoBehaviour
         }
         if(origin==null)return;
 
+#if ENABLE_INPUT_SYSTEM
+        photoModeToggleAction = new InputAction("Toggle rover photo view", InputActionType.Button);
+        photoModeToggleAction.AddBinding("<XRController>{RightHand}/secondaryButton");
+        photoModeToggleAction.Enable();
+#endif
+
         var rig=origin.transform.root;
         moveProvider=rig.GetComponentInChildren<DynamicMoveProvider>(true);
         if(moveProvider!=null)
@@ -572,7 +597,7 @@ public class LandingSequenceController : MonoBehaviour
 
     void UpdateRoverDrive()
     {
-        if(!roverDriveEnabled || !roverMode || scanning || opportunityRover==null)return;
+        if(!roverDriveEnabled || !roverMode || photoCameraMode || scanning || opportunityRover==null)return;
         Vector2 throttleInput=moveProvider!=null && moveProvider.leftHandMoveAction.action!=null
             ? moveProvider.leftHandMoveAction.action.ReadValue<Vector2>() : Vector2.zero;
         Vector2 steeringInput=moveProvider!=null && moveProvider.rightHandMoveAction.action!=null
@@ -602,6 +627,79 @@ public class LandingSequenceController : MonoBehaviour
         opportunityRover.transform.position=target;
         float travel=Vector3.ProjectOnPlane(target-before,Vector3.up).magnitude;
         foreach(var wheel in wheels)wheel.Rotate(Vector3.right,travel/0.13f*Mathf.Rad2Deg,Space.Self);
+    }
+
+    void UpdatePhotoCamera()
+    {
+        if (!roverMode || origin == null || origin.Camera == null || scanning || opportunityRover == null)
+            return;
+
+        bool toggle = false;
+#if ENABLE_INPUT_SYSTEM
+        if (photoModeToggleAction != null && photoModeToggleAction.WasPressedThisFrame())
+            toggle = true;
+        var keyboard = Keyboard.current;
+        if (keyboard != null && keyboard.cKey.wasPressedThisFrame)
+            toggle = true;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(KeyCode.C)) toggle = true;
+#endif
+        if (toggle)
+            TogglePhotoCameraMode();
+        if (!photoCameraMode) return;
+
+        Vector2 orbit = moveProvider != null && moveProvider.rightHandMoveAction.action != null
+            ? moveProvider.rightHandMoveAction.action.ReadValue<Vector2>() : Vector2.zero;
+        Vector2 zoom = moveProvider != null && moveProvider.leftHandMoveAction.action != null
+            ? moveProvider.leftHandMoveAction.action.ReadValue<Vector2>() : Vector2.zero;
+#if ENABLE_INPUT_SYSTEM
+        if (keyboard != null)
+        {
+            orbit.x += (keyboard.dKey.isPressed || keyboard.rightArrowKey.isPressed ? 1f : 0f)
+                - (keyboard.aKey.isPressed || keyboard.leftArrowKey.isPressed ? 1f : 0f);
+            zoom.y += (keyboard.wKey.isPressed || keyboard.upArrowKey.isPressed ? 1f : 0f)
+                - (keyboard.sKey.isPressed || keyboard.downArrowKey.isPressed ? 1f : 0f);
+            orbit.y += (keyboard.eKey.isPressed ? 1f : 0f) - (keyboard.qKey.isPressed ? 1f : 0f);
+        }
+#elif ENABLE_LEGACY_INPUT_MANAGER
+        orbit.x += (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow) ? 1f : 0f)
+            - (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? 1f : 0f);
+        zoom.y += (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow) ? 1f : 0f)
+            - (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow) ? 1f : 0f);
+        orbit.y += (Input.GetKey(KeyCode.E) ? 1f : 0f) - (Input.GetKey(KeyCode.Q) ? 1f : 0f);
+#endif
+
+        float deltaTime = Time.unscaledDeltaTime;
+        Vector3 pivot = opportunityRover.transform.position + Vector3.up * Mathf.Max(0.25f, roverPivotHeight + 0.35f);
+        float yawDelta = orbit.x * photoOrbitDegreesPerSecond * deltaTime;
+        if (Mathf.Abs(yawDelta) > 0.001f)
+            origin.transform.RotateAround(pivot, Vector3.up, yawDelta);
+
+        float requestedPitch = orbit.y * photoPitchDegreesPerSecond * deltaTime;
+        float nextPitch = Mathf.Clamp(photoPitch + requestedPitch, photoMinimumPitch, photoMaximumPitch);
+        float pitchDelta = nextPitch - photoPitch;
+        if (Mathf.Abs(pitchDelta) > 0.001f)
+        {
+            origin.transform.RotateAround(pivot, origin.Camera.transform.right, pitchDelta);
+            photoPitch = nextPitch;
+        }
+
+        Vector3 horizontalOffset = Vector3.ProjectOnPlane(origin.Camera.transform.position - pivot, Vector3.up);
+        float distance = horizontalOffset.magnitude;
+        if (distance > 0.001f && Mathf.Abs(zoom.y) > 0.001f)
+        {
+            float nextDistance = Mathf.Clamp(distance - zoom.y * photoZoomMetersPerSecond * deltaTime,
+                photoMinimumDistance, photoMaximumDistance);
+            origin.transform.position += horizontalOffset.normalized * (nextDistance - distance);
+        }
+    }
+
+    void TogglePhotoCameraMode()
+    {
+        if (scanning) return;
+        photoCameraMode = !photoCameraMode;
+        foreach (var label in photoViewButtonLabels)
+            if (label != null) label.text = photoCameraMode ? "Photo view: ON" : "Photo view: OFF";
     }
 
     void SolveArm(Vector3 target)
@@ -761,14 +859,17 @@ public class LandingSequenceController : MonoBehaviour
 
     void Update()
     {
+        UpdatePhotoCamera();
         UpdateRoverDrive();
 #if ENABLE_INPUT_SYSTEM
         var keyboard=UnityEngine.InputSystem.Keyboard.current;if(keyboard==null)return;
+        if(photoCameraMode)return;
         if(keyboard.eKey.wasPressedThisFrame)Investigate();
         if(keyboard.digit1Key.wasPressedThisFrame)SubmitConclusion(true);
         if(keyboard.digit2Key.wasPressedThisFrame)SubmitConclusion(false);
         if(keyboard.enterKey.wasPressedThisFrame)HandleEnter();
 #elif ENABLE_LEGACY_INPUT_MANAGER
+        if(photoCameraMode)return;
         if(Input.GetKeyDown(KeyCode.E))Investigate();
         if(Input.GetKeyDown(KeyCode.Alpha1))SubmitConclusion(true);
         if(Input.GetKeyDown(KeyCode.Alpha2))SubmitConclusion(false);
@@ -818,6 +919,9 @@ public class LandingSequenceController : MonoBehaviour
         foreach(var pair in controllerManagerStates)
             if(pair.Key!=null){pair.Key.smoothMotionEnabled=pair.Value[0];pair.Key.smoothTurnEnabled=pair.Value[1];}
         if(moveProvider!=null)moveProvider.enabled=moveProviderWasEnabled;
+#if ENABLE_INPUT_SYSTEM
+        if(photoModeToggleAction!=null){photoModeToggleAction.Disable();photoModeToggleAction.Dispose();}
+#endif
         foreach (var asset in assets) if (asset != null) Destroy(asset);
     }
 }
