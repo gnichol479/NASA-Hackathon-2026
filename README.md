@@ -1,290 +1,177 @@
-# NASA Space Apps 2026: Abandoned but not Forgotten
+# Still Here: Stories of the Machines NASA Left on Mars
 
-Team: Yarden, Gibson, Dominic, Susan
+### Abandoned, but not forgotten.
 
-A VR experience in Unity for students aged 12-18. You arrive on Mars next to a rover NASA left behind, explore it, relive its mission in a flashback through its eyes, then come back to the present to learn why it matters.
+**An interactive Mars mission story built in Unity for Meta Quest 2, with an Editor simulator for reviewers without a headset.**
 
-**First rover: Opportunity.** InSight and Ingenuity come after the pitch if there's time.
+Still Here invites school-age explorers to meet the machines NASA left on Mars, step into their past, and discover why their work still matters. Build a spacecraft, witness its launch, investigate the science, and return to the hardware that remains. Our goal is to turn distant mission history into a personal connection with robotic exploration.
 
-## Deadlines (Sun Nov 15)
+**NASA Space Apps 2026 · Abandoned but Not Forgotten**  
+**Team:** Yarden, Gibson, Dominic, and Susan  
+**Audience:** students approximately ages 12–18 and curious space enthusiasts.
 
-| Time | What |
+![Still Here mission selection on Mars](launch-previews/title/title-1-view.png)
+
+## Judges: start here
+
+**For immediate review, open the recorded demonstrations:**
+
+- [Opportunity assembly demonstration — video](launch-previews/Opportunity-Headquarters-Assembly.mp4)
+- [Opportunity launch demonstration — video](launch-previews/Opportunity-Launch-Teaser.mp4)
+- [Scene screenshots and previews](launch-previews/)
+
+**For hands-on evaluation, use the Unity project below.** A headset is optional for Editor testing. The [experimental browser preview](https://last-signal-browser.vercel.app) is deployed, but a known WebGL startup stall can leave it at 90%. It is not the recommended judging route at submission time.
+
+## Run the project
+
+### 1. Open the correct Unity project
+
+```bash
+git clone https://github.com/gnichol479/NASA-Hackathon-2026.git
+```
+
+1. Install **Unity Hub** and **Unity Editor 2022.3.62f1**.
+2. In Unity Hub, add the nested **`NASA-Hackathon/`** folder inside this repository. It contains `Assets`, `Packages`, and `ProjectSettings`. Do not select the repository root as the Unity project.
+3. Let Unity finish importing assets and restoring the packages declared in `Packages/manifest.json`. First import can take several minutes.
+4. Use the recorded Unity version rather than upgrading the project.
+5. Open **`Assets/Shared/Scenes/TitleScreen-Night.unity`**.
+
+No ElevenLabs account, API key, or live voice-generation request is required to play the included narration.
+
+### 2. Choose a testing mode
+
+| Mode | Setup |
 |---|---|
-| 12:00 pm | Full Opportunity chain plays start to finish |
-| **3:00 pm** | Submit pitch (due 3:30 pm) |
-| 4:00-6:00 pm | Pitch session |
-| 9:30 pm | Feature freeze. Only bug fixes after this |
-| **11:00 pm** | Submit project (due 11:59 pm) |
+| **Without a headset** | Select **NasaHack → VR → Use desktop XR simulator**, then press Play. Focus the Game view and use the simulator's help overlay to simulate headset/controller movement and interaction. This is an Editor testing route. |
+| **Quest 2 through a Windows PC** | Connect the headset through **Meta Horizon Link**, enter Link, and ensure the Meta/OpenXR runtime is active. Select **NasaHack → VR → Use Quest Link (disable simulator)**, then press Play. Use Quest Touch controllers. |
 
-## Team update (Sat Nov 14)
+For judging, open the existing scenes directly. Scene-builder menu commands regenerate authored content and are not needed to play.
 
-Hey team, here's where we are.
+### 3. Take a short tour
 
-**Done**
-- Project setup: URP, OpenXR, XR Interaction Toolkit, glTFast + Draco (for NASA models), TextMeshPro
-- One shared XR Rig used in every scene. XR Device Simulator lets you test without a headset
-- All 5 Opportunity scenes exist, are in Build Settings, and are linked in order
-- **Arrival** (Yarden): Opportunity in Perseverance Valley, Mars sky, 4 info hotspots, story panel, "See how I got here" button that triggers the flashback and loads Origin
-- **Legacy** (Yarden): back in the present, 4 story beats, "Send wake-up command" interaction (it never answers, like the real 2018 dust storm), "Return to Earth" goes back to the title screen
-- **Launch** (Dominic): press the red LAUNCH button and watch a Delta II 7925H lift off at night from Cape Canaveral, then it loads Landing. Details in [Launch scene](#launch-scene-dominic) below
-- **Landing** (Susan): parachute/airbag landing, rover deployment, and three hands-on science tasks with instrument animations, persistent findings, completion chimes, and a handoff to Legacy. Details in [Landing scene](#landing-scene-susan) below
-- **Rover model** (Dominic): detailed Spirit/Opportunity model with textures and its built-in unfold animation, in `Assets/Opportunity/Models/`
-- **Flashback/Origin** (Gibson): rover assembly experience in the facility
-- Shared scripts anyone can reuse (see below)
+Choose **Opportunity** for the fullest introduction to the narrative format:
 
-**Your part**
-- Gibson: Origin, built as `Opportunity-Flashback` (assemble the rover, systems check, ready for launch)
-- Dominic: Launch
-- Susan: Landing + three hands-on rover science tasks (hematite "blueberries", jarosite analysis, and interpreting evidence of water)
-- Yarden: Arrival + Legacy
+1. Meet the rover on Mars and select **See how I got here**.
+2. In the assembly facility, take the three components from their benches and release them near their marked attachment positions.
+3. Complete **Systems Check**, then select **Ready for Launch**.
+4. Watch the launch, continue into landing, and investigate the sample stations.
+5. Interpret the evidence and finish with the rover's legacy and final wake-up attempt.
 
-**Open decisions**
-- ~~Origin folder~~ Decided: Gibson's `Opportunity-Flashback` (in `NASA-Headquarters/LastSignalFlashback/`) is the Origin part. Arrival links to it and it's in Build Settings. The empty `Opportunity/Origin/` folder can be deleted
-- **Gibson:** hook "Ready for Launch" to the chain. Add a Scene Flow object (LoadNextScene, Next Scene = `Opportunity-Launch`) and add `LoadNextScene.Load` to On Launch Handoff Requested
-- The real rovers were built at JPL (Jet Propulsion Laboratory), not NASA HQ. A JPL clean room is the accurate setting for Origin
-- Quest 2: Quest Link needs a Windows PC with a decent GPU. Who has one for the demo?
-- Who owns the pitch slides?
+Return to mission selection to try **InSight's interior-science story** or **Ingenuity's assembly and launch**. Stop Play mode and reopen the title scene for a clean restart.
 
-## Scene flow
+## Controls and demo shortcuts
 
-```
-TitleScreen-Night ─ Opportunity → Opportunity-Arrival → Opportunity-Flashback → Opportunity-Launch → Opportunity-Landing → Opportunity-Legacy → TitleScreen-Night
- (mission choice)                    (present)            (flashback)          (flashback)          (flashback)            (present)
-                  ├ InSight     → InSight-Flashback → InSight-Launch → TitleScreen-Night
-                  └ Ingenuity   → Ingenuity-Flashback → Ingenuity-Launch → TitleScreen-Night
-```
+| Context | Control |
+|---|---|
+| Quest movement | Left thumbstick moves; right thumbstick turns. Head tracking remains independent. |
+| Quest interactions | Grip grabs components; release near a socket to attach. Aim the controller ray and use the trigger for UI. |
+| Desktop simulated VR | Use the XR Device Simulator's on-screen control guide. |
+| Launch presentation | Any keyboard key starts/skips the countdown; another press after flight starts advances toward the next scene. |
+| Scene handoff | **N** skips where a single next destination is configured. |
+| Opportunity Landing | **WASD / arrows** drive; **E** investigates; **Enter** begins or advances the mission. |
+| Landing conclusion | **1** selects the water-evidence conclusion; **2** selects the alternative and shows retry feedback. |
+| Landing photo view | **C** toggles orbit mode; **A/D** orbit, **W/S** zoom, **Q/E** tilt. |
+| Opportunity story | **F** triggers the arrival flashback; **U** sends the legacy wake-up command. |
 
-Every scene has a **Scene Flow** object already pointing to the next scene. When your part is done, call `Load()` on it. That's the only hook you need:
-- From a 3D object: add **XR Simple Interactable**, then in its **Select Entered** event drag in Scene Flow → `LoadNextScene.Load`
-- From a UI button: **OnClick** → Scene Flow → `LoadNextScene.Load`
-- After a video or narration: set **Auto Load After** on Scene Flow (seconds)
+Keyboard skips are presentation aids. Use the scene's interaction buttons to evaluate its educational progression; a skip can bypass an activity. Shortcuts depend on the active scene and Game-view focus.
 
-## Launch scene (Dominic)
+## The three missions
 
-`Assets/Opportunity/Launch/Scenes/Opportunity-Launch.unity`. You stand on a viewing deck facing east, with the rocket on its pad 90 m ahead and the Atlantic behind it.
-
-**What happens**
-1. Press the red **LAUNCH** button on the console (poke it, grab it, or point and pull the trigger). Keyboard: **L**
-2. T-10 countdown on the big sign to the front-left. Main engine lights at T-3
-3. Liftoff: six boosters fire, smoke covers the pad, the engine glow lights up the whole area, controllers rumble
-4. The rocket pitches east, drops the six spent boosters, and the three air-lit boosters ignite
-5. After about 45 seconds it fades to `Opportunity-Landing` through Scene Flow
-
-**What's in it**
-- **Rocket:** a Delta II 7925H built from generated meshes at real size (about 39 m tall), because there was no free Delta II model. Teal first stage, nine white strap-on boosters, white nose fairing
-- **Surroundings:** launch pad and umbilical tower, the twin pad next door, blockhouse, hangars, water tower, roads with lamps, palms, scrub, beach and ocean
-- **Night sky:** generated stars, Milky Way and a half moon. Floodlights with visible beams light the rocket
-- **Sound:** the engine roar is generated in code, so there is no audio file
-
-**Files**
-- Scripts in `Assets/Shared/Scripts/Launch/`: `DeltaIILaunch` (countdown and flight), `LaunchButton`, `RocketRumble` (the roar), `FallingDebris` (dropped boosters)
-- Everything else is in `Assets/Opportunity/Launch/`: rocket prefab, meshes, materials, textures, post-processing profile
-
-**Rebuilding it**
-- The scene is made by a script, `Assets/Shared/Editor/DeltaIIBuilder*.cs`. Menu: **NasaHack > Opportunity > Build Delta II Launch**. It replaces what it built before and saves the scene, so hand edits to those objects are lost on a rebuild
-- For a daytime launch, set `NightLaunch = false` in `DeltaIIBuilder.Night.cs` and rebuild
-- **NasaHack > Opportunity > Capture Launch Previews** renders stills of the scene to `Library/LaunchPreview/` without entering Play mode
-
-**Heads up for everyone**
-- `Assets/Shared/Settings/URP-Asset.asset`: the per-object light limit went from 4 to 8. The launch needs it so the engine glow reaches the ground. It applies to every scene
-- The rover model's **Import Visibility** is off. The FBX marks all its parts as hidden, so with it on the rover imports invisible
-- The rover itself is not shown in the Launch scene. It is inside the fairing
-
-**Launch facts used in the scene.** Check these against a NASA page before the pitch, as the rule below says:
-- Launched July 7, 2003 at 11:18 p.m. EDT (a night launch) from Cape Canaveral, Space Launch Complex 17B
-- Rocket: Delta II 7925H ("Heavy"), nine strap-on solid boosters, six lit on the pad and three in flight
-- The flight in the scene is sped up. The real timeline is much longer
-
-## Landing scene (Susan)
-
-`Assets/Opportunity/Landing/Scenes/Opportunity-Landing.unity`. Susan built the landing sequence and rover science activity between Launch and Legacy.
-
-**What happens**
-1. Watch the four-second parachute/airbag landing from outside, followed by the detailed rover's solar-panel deployment. A fade moves the player to an observer view above and behind Opportunity while keeping headset tracking active.
-2. Select **Begin mission** on the briefing panel, then approach each of the three sample stations. Each station has its own instructions, instrument action, and findings that remain visible after completion.
-3. Use the microscopic imager to reveal enlarged hematite "blueberries", run a scripted jarosite mineral analysis, then inspect inconclusive red dust and interpret the evidence.
-4. Choose the supported conclusion: evidence of water. An incorrect life conclusion gives retry feedback. Completing the mission unlocks the button to continue to `Opportunity-Legacy`.
-
-**What Susan added**
-- Detailed rover with the imported panel-unfold animation, wheel rotation during movement, a gentle mast scan, and procedural arm/tool contact and retraction at the samples. Driving pauses during instrument actions.
-- Three separate task canvases, ordered progression, protection against counting a sample twice, and a sample-recorded chime.
-- Mars terrain, rocks, lighting, and sky matched to Legacy, plus far terrain built with the locally imported Mars Landscape 3D pack. Surface grounding uses the highest terrain intersection where terrain sections overlap.
-- Desktop controls: **Enter** begins/advances the mission, **E** investigates a nearby sample, **1** selects water, and **2** selects life for retry feedback. Panels and sample selection also provide interaction controls.
-
-**Files and verification**
-- Runtime: `Assets/Opportunity/Landing/Scripts/LandingSequenceController.cs`. Full setup notes, science sources, credits, and manual checks: [Landing README](NASA-Hackathon/Assets/Opportunity/Landing/README.md).
-- Unity menu: **NasaHack > Landing > Verify playable mission**. The recorded automated Play-mode run **passed**, covering deployment, rover joints/wheels, all three tasks, duplicate prevention, conclusion retry, and transition to Legacy. See [verification report](landing-playmode-verification.txt).
-- Physical controller input, panel readability, arm contact appearance, wheel axes, and headset comfort still need manual device testing.
-
-The activity uses scripted educational readings and illustrative rover motion. The environment intentionally reuses Legacy's Perseverance Valley scenery for continuity; it is not an accurate reconstruction of the Eagle Crater landing site. Legacy's terrain and panorama credits also apply here.
-
-## InSight launch scene (Dominic)
-
-`Assets/InSight/Launch/Scenes/InSight-Launch.unity`. Same idea as the Opportunity launch, built with the same scripts, for the InSight lander.
-
-- **Rocket:** an Atlas V 401 at real size (about 58 m tall): bronze booster, white Centaur upper stage and nose fairing, no strap-on boosters
-- **Setting:** Vandenberg, California, before dawn. Fog, rolling hills, the mobile service tower rolled back from the pad, a gibbous moon
-- **Lander on show:** the InSight lander model stands on a lit display beside the viewing deck with a sign, because in the real launch it is hidden inside the nose fairing
-- **Model:** `Assets/InSight/Models/InSight-Lander.glb` (imported at real size, about 6 m across)
-- **Rebuild:** **NasaHack > InSight > Build Atlas V Launch**. Code is in `Assets/Shared/Editor/DeltaIIBuilder.InSight.cs`
-- **In the chain:** the InSight button on the title screen loads it, and it returns to the title screen when the launch ends
-- `DeltaIILaunch` now has the sign messages and liftoff acceleration as Inspector fields, so both launches share it. The Opportunity scene keeps its old values
-
-**InSight facts used in the scene.** Check these against a NASA page before showing them:
-- Launched May 5, 2018 at 4:05 a.m. PDT from Vandenberg Air Force Base, Space Launch Complex 3E, on an Atlas V 401
-- First launch to another planet from the U.S. West Coast. Thick fog hid the rocket from most people watching
-- Landed at Elysium Planitia on November 26, 2018. It listened for marsquakes and measured heat from inside Mars
-
-## InSight flashback (Dominic)
-
-`Assets/InSight/NASA-Headquarters/` is Gibson's clean-room flashback, rebuilt to assemble the **InSight lander** instead of Opportunity. Gibson's `Assets/Opportunity/NASA-Headquarters/` is not changed.
-
-- Scene: `InSight-Flashback.unity`. The lander stands on the assembly podium; its three parts wait on the numbered bench trays
-- Parts: **01 solar arrays** (both round arrays), **02 SEIS seismometer**, **03 robotic arm**. They come from the named groups in `Assets/InSight/Models/InSight-Lander.glb` (`panel_l_root`, `panel_r_root`, `SEIS`, `arm_01`)
-- The arrays (about 6 m across together) and the arm are bigger than a tray, so their tray copies are shown scaled down. Snapped in, they appear full size on the lander
-- Snap all three, run Systems Check, then Ready for Launch loads `InSight-Launch`
-- Every class is renamed (`InSightX`, namespace `LastSignal.InSightFlashback`) so it compiles next to Gibson's. Tools are under **Last Signal > InSight Flashback**. **Verify Assembly Flow** passes
-- **Narration:** captions are InSight's, but there is no voice-over yet (Gibson's MP3s were Opportunity's lines). Generate it with **Last Signal > InSight Flashback > Narration > ElevenLabs Brian** (needs an ElevenLabs API key)
-- The title screen's InSight button starts here, and it is in Build Settings
-
-## Ingenuity path (Dominic)
-
-Built the same way as InSight's: an assembly room, then a launch, then back to the title screen.
-
-**Assembly room:** `Assets/Ingenuity/NASA-Headquarters/`, scene `Ingenuity-Flashback.unity`
-- Gibson's clean room again, this time for the **Ingenuity helicopter**. Parts: **01 rotor blades** (both rotors and their hubs), **02 solar panel**, **03 landing legs**, from `Assets/Ingenuity/Models/Ingenuity-Helicopter.glb`
-- The helicopter is at real size (rotors 1.2 m across), so it is small on the podium. Its body rests on a small work stand until the legs are fitted
-- Classes are `IngenuityX`, namespace `LastSignal.IngenuityFlashback`, tools under **Last Signal > Ingenuity Flashback**. **Verify Assembly Flow** passes
-- Captions only, no voice-over yet (same as InSight)
-
-**Launch:** `Assets/Ingenuity/Launch/Scenes/Ingenuity-Launch.unity`
-- An **Atlas V 541** at real size: bronze booster, four white solid rocket boosters that drop away in flight, and the wide 5-m nose fairing
-- A **daytime** launch at Cape Canaveral, reusing the Cape surroundings from the Opportunity launch with the daytime sky
-- The helicopter model stands on a pedestal beside the viewing deck, with a sign
-- **Rebuild:** **NasaHack > Ingenuity > Build Atlas V Launch**
-
-**Ingenuity facts used.** Check these against a NASA page before showing them:
-- Launched with the Perseverance rover on July 30, 2020 at 7:50 a.m. EDT from Cape Canaveral, Space Launch Complex 41, on an Atlas V 541. It rode folded up under the rover
-- Landed with Perseverance in Jezero Crater on February 18, 2021. First flight: April 19, 2021
-- Two rotors 1.2 m across, spinning in opposite directions at about 2,400 turns a minute. A solar panel charges its batteries
-
-## Title screen with mission choice (Dominic)
-
-`Assets/Shared/Scenes/TitleScreen-Night.unity` is now the first scene in Build Settings, so the game starts there. Yarden's `TitleScreen.unity` is unchanged and still in the project and in Build Settings.
-
-- Dusk on Mars: a blue glow where the sun set, stars, Earth labelled in the sky, Opportunity in the middle distance, and "ABANDONED / BUT NOT FORGOTTEN" above the horizon
-- **Three mission cards**, each with its own button:
-
-| Card | Button loads | Keyboard |
+| Mission | Implemented experience | Learning focus |
 |---|---|---|
-| Opportunity | `Opportunity-Arrival` | **1** |
-| InSight | `InSight-Flashback` (assembly room), then `InSight-Launch` | **2** |
-| Ingenuity | `Ingenuity-Flashback` (assembly room), then `Ingenuity-Launch` | **3** |
+| **Opportunity — rover** | Present-day arrival, assembly facility, Delta II launch, landing and sample investigation, legacy, and return to the title. | How instruments turn rocks and minerals into evidence of past water, and why a mission matters after communication ends. |
+| **InSight — lander** | Assembly, Atlas V launch, descent and landing, surface science, legacy, and return to the title. | How a stationary lander investigates Mars's interior through SEIS, HP³, and RISE. |
+| **Ingenuity — helicopter** | Assembly of rotor blades, solar panel, and landing legs; Atlas V launch with the Mars 2020 mission; return to the title. | The engineering behind a helicopter technology demonstration on another planet. Surface flight gameplay is not included in the current scene set. |
 
-- **Adding more parts to a mission:** create a scene named `<Mission>-<Part>.unity`, then run **NasaHack > Build Night Title Screen**. The button picks the mission's `-Arrival` scene if there is one, else `-Flashback`, else `-Launch`, else the first by name, and adds it to Build Settings
-- The builder is `Assets/Shared/Editor/TitleScreenBuilder.cs`. It rebuilds the whole scene, so hand edits to it are lost. Its assets are in `Assets/Shared/Title/`
-
-**Changes outside my own scenes, so everyone knows**
-- **Build Settings:** `TitleScreen-Night` added first, `InSight-Launch` added last
-- **`Opportunity-Legacy`:** the Scene Flow's Next Scene changed from `TitleScreen` to `TitleScreen-Night`, so "Return to Earth" goes back to the mission choice. That one line is the only change
-- `InSight-Launch` also returns to `TitleScreen-Night`
-
-## Unity tip
-
-**Edit > Preferences > General > Script Changes While Playing → Recompile After Finished Playing.** Otherwise pulling or editing code while in Play mode breaks the running scene with a wall of errors.
-
-## Getting started
-
-1. `git pull`
-2. Open `NASA-Hackathon/` in Unity Hub with **Unity 2022.3.62f1**. First open takes a few minutes while packages import
-3. If Unity offers to upgrade anything, say **no**
-4. Open **only your own scene** and press Play
-
-**Testing without a headset**
-- The XR Device Simulator loads automatically in Play mode. Expand its panel (bottom left of the Game view) to see the controls
-- **N**: skip to the next scene
-- **Enter**: Next on story panels. **U**: send the wake-up command in Legacy
-- In the headset you point the controller ray and pull the trigger instead
-
-## Folder structure
-
-```
-Assets/
-  Shared/                 used by everyone
-    Prefabs/XR Rig.prefab
-    Scripts/              LoadNextScene, ScreenFader, FlashbackTransition, NarrationPanel,
-                          InfoHotspot, DustCover, Billboard, UiFactory
-      Legacy/             WakeUpCommand
-    Scenes/TitleScreen.unity
-    Settings/             URP asset, Mars Sky, Hotspot material
-  Opportunity/
-    Models/               rover models, imported once, used by every part
-    Arrival/ Origin/ Launch/ Landing/ Legacy/
-      Scenes/ Prefabs/ Audio/ Textures/
+```text
+Mission selection
+├─ Opportunity: Arrival → Assembly → Launch → Landing / Science → Legacy → Title
+├─ InSight:     Assembly → Launch → Landing → Surface Science → Legacy → Title
+└─ Ingenuity:   Assembly → Launch → Title
 ```
 
-**Rules that keep us from breaking each other's work**
-1. **Only edit your own scene.** Two people editing the same scene = merge conflict nobody can fix
-2. **Scene names are unique:** `<Rover>-<Part>.unity`. Scenes load by name
-3. **Don't copy a script into each rover folder.** Two scripts with the same class name break compilation for everyone. Reusable scripts go in `Assets/Shared/Scripts/`
-4. **Models live once** in `Assets/Opportunity/Models/`. Drag them into your scene, don't duplicate them
-5. **Move or rename files inside Unity**, never in your file browser (keeps the `.meta` links)
-6. **Don't commit `ProjectSettings/` or `Packages/` changes** unless the team agreed. Package installs touch everyone
+**Assembly facilities:** components have grab interactions, marked snap targets, feedback, and explanations of their purpose. Completing all three components enables the systems check and launch handoff. The facilities are inspired by spacecraft engineering environments; assembly is an educational simplification.
 
-## Reusable pieces
+**Launches:** mission-specific vehicles and settings present Opportunity's Delta II, InSight's Atlas V 401, and the Atlas V 541 that carried Perseverance and Ingenuity. Launch timing and motion are compressed for presentation.
 
-| Script | What it does | How to use |
+**Opportunity science:** investigate hematite “blueberries,” jarosite, and an inconclusive dust sample. Choose the conclusion supported by the evidence. Scripted readings and instrument animations teach interpretation rather than reproduce laboratory measurements.
+
+**InSight science:** learn what SEIS listens for, what HP³ was designed to measure, and how RISE studies planetary motion. The story acknowledges that HP³ did not reach its intended depth; it does not present the heat probe as a successful deep-drilling experiment.
+
+**Legacy:** bring the story back to the machines on Mars and the knowledge they left behind. Opportunity's wake-up interaction connects the player to the end of communication; InSight's story connects dust accumulation and solar power with the end of its mission.
+
+| Launch | InSight | Ingenuity assembly |
 |---|---|---|
-| `LoadNextScene` | Fades to black and loads the next scene | Already in every scene as Scene Flow. Call `Load()` |
-| `FlashbackTransition` | The "memory" look: warm, faded, vignette | Add to any object. **Origin, Launch, Landing: set Start Mode = In Flashback** so the whole flashback looks like a memory |
-| `NarrationPanel` | Story text one beat at a time, optional voice clip per beat | Edit the Beats list in the Inspector |
-| `InfoHotspot` | Glowing dot that shows an info card when you point at it | Edit Title/Body in the Inspector |
-| `DustCover` | Tints a model with Mars dust | `Amount` 0 = clean (flashback), 0.5+ = years on Mars |
+| ![Opportunity liftoff](launch-previews/7-liftoff.png) | ![InSight lander display](launch-previews/insight/10-lander.png) | ![Ingenuity assembly room](launch-previews/ingenuity/03-room-and-gallery.png) |
 
-**Models**
-- `Mars Exploration Rover - Spirit and Opportunity.fbx`: detailed, textured (from Dominic). Best for close-ups
-- Arrival and Legacy now use the detailed model, posed deployed (end of its unfold clip), with 19 leftover Blender parts hidden. Hide those same parts if you use the model elsewhere (list in `OpportunitySceneBuilder.cs`, `KnownHiddenParts`)
-- `Opportunity-NASA.glb`: low-poly backup
+## Narration, readability, and accessibility
 
-## Git workflow
+The experience combines readable story panels, captions, nearby instructions, and recorded narration. **ElevenLabs Brian** provides generated voice audio imported as local clips, so playback does not consume API credits. Voice generation is an optional Editor authoring workflow, separate from playing the project.
 
-1. `git pull` before you start and before you push
-2. Commit only files in your own folder (and your scene)
-3. Keep every file under 50 MB. Compress videos to 720p `.mp4`
-4. The `.gitattributes ... not allowed` warnings on every git command are harmless
+Opportunity and InSight include recorded mission audio. Ingenuity has a recorded title-card introduction, caption/audio hooks, and an Editor generation tool; full Ingenuity mission voice files are not bundled in this checkout. Audio coverage therefore varies by scene.
 
-## Facts and sources
+The project includes controller-ray UI, an Editor simulator, scene shortcuts for demonstrations, and an orbit view for Opportunity Landing screenshots. It remains a prototype: headset comfort and panel readability can vary with device fit, scene, and viewing distance.
 
-Every fact shown to players must come from a NASA page. Don't guess dates or numbers. Key ones already checked:
+See the [narration guide](NASA-Hackathon/Assets/Shared/Audio/Narration/README.md) for generation and validation tools. Credentials are not required for judges and should never be committed.
 
-- Landed Jan 25, 2004, Meridiani Planum. Planned 90 sols, lasted almost 15 years
-- Drove 45.16 km, the first marathon on another world. Climbed a 32-degree slope
-- Last contact June 10, 2018 (global dust storm). Team sent more than a thousand commands over 8 months, last on Feb 12, 2019. Mission declared complete Feb 13, 2019
-- Final spot: Perseverance Valley, Endeavour Crater rim
-- Perseverance passed Opportunity's driving record on Oct 11, 2026
-- **Don't use** "my battery is low and it's getting dark". A reporter paraphrased it from the rover's data. Opportunity never sent those words
+## NASA data and scientific accuracy
 
-Sources:
-- https://science.nasa.gov/mission/mer-opportunity/
-- https://www.jpl.nasa.gov/news/nasas-opportunity-rover-mission-on-mars-comes-to-end/
-- https://science.nasa.gov/blogs/perseverance-mars-rover/2026/10/12/nasas-perseverance-sets-off-world-record-for-total-distance-driven/
-- 3D models: https://science.nasa.gov/3d-resources/
+NASA mission information drives the story, instrument explanations, captions, and narration. We paraphrase factual material and use interactive actions to connect hardware to its scientific purpose.
 
-## Textures and rocks: Mars Landscape 3D (free Asset Store pack)
+| Resource | How it contributes |
+|---|---|
+| [NASA: Opportunity](https://science.nasa.gov/mission/mer-opportunity/) | Mission purpose, instruments, exploration history, and evidence of past water. |
+| [NASA: InSight](https://science.nasa.gov/mission/insight/) and [science instruments](https://science.nasa.gov/mission/insight/science-instruments/) | Interior-science objectives, instrument explanations, and mission context. |
+| [NASA: Ingenuity](https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/) | Helicopter engineering and the technology demonstration's purpose. |
+| [NASA 3D Resources](https://science.nasa.gov/3d-resources/) | Spacecraft models used to connect the interactive experience to real hardware. |
+| [HiRISE terrain model ESP_018701_1775](https://www.uahirise.org/dtm/ESP_018701_1775) | Opportunity-area terrain derived from NASA mission data. Credit: NASA/JPL/University of Arizona/USGS. |
+| [Opportunity panorama PIA22909](https://www.jpl.nasa.gov/images/pia22909-opportunity-legacy-pan-true-color/) | Mars environment imagery. Credit: NASA/JPL-Caltech/Cornell/ASU. |
 
-Not in git (store license). Each person imports it once: open https://assetstore.unity.com/packages/3d/environments/landscapes/mars-landscape-3d-175814, sign in, **Add to My Assets**; in Unity **Window > Package Manager > My Assets > Mars Landscape 3D > Download > Import**. Then **NasaHack > Mars Environment > NASA terrain + Mars Landscape 3D textures and rocks**. Without it the builder falls back to generated textures. Credit: Evgenii Nikolskii.
+The [detailed NASA source register](NASA-Hackathon/Assets/Shared/Audio/Narration/NASA-Sources.md) links the mission, launch, and science references behind the narration. Mission-specific READMEs below provide additional context.
 
-## Data credits (must appear on the project page)
+**Interpretive boundaries:** room layouts, assembly order, animated instrument actions, readings, and accelerated flights are designed for learning. Reused Mars scenery supports visual continuity and is not an exact reconstruction of every landing site. First-person storytelling is an authored interpretation, not a record of words spoken by spacecraft. This is a student project, not an official NASA application.
 
-The Mars environment in Title, Arrival and Legacy is built from real NASA data:
+## Technology and project structure
 
-- **Terrain:** HiRISE digital terrain model `DTEEC_018701_1775_018846_1775_U01` (1 m posts), cropped 3.2 km around Opportunity's final position (2.336 S, 354.651 E, Perseverance Valley). Credit: **NASA/JPL/University of Arizona/USGS**. https://www.uahirise.org/dtm/ESP_018701_1775
-- **Sky:** Opportunity's last 360-degree panorama, PIA22909 (true color), taken May 13 to June 10, 2018 from the same spot. Credit: **NASA/JPL-Caltech/Cornell/ASU**. https://www.jpl.nasa.gov/images/pia22909-opportunity-legacy-pan-true-color/
-- **Rover models:** NASA 3D Resources. https://science.nasa.gov/3d-resources/
+Built with **Unity 2022.3.62f1**, **Universal Render Pipeline 14.0.12**, **XR Interaction Toolkit 2.6.4**, **OpenXR 1.14.3**, **Input System 1.14.0**, **TextMeshPro 3.0.7**, **glTFast 6.18.0**, and **Draco 5.4.3**. ElevenLabs is used for voice authoring; Vercel hosts the experimental WebGL build. GitHub hosts the source and review materials.
 
-Rebuild the environment any time with **NasaHack > Build Mars Environment (Title, Arrival, Legacy)**. Source data and the generated heightmap live in `Assets/Shared/Mars/`. To turn the panorama so it lines up with the terrain, change **Rotation** on `Assets/Shared/Mars/Mars Sky (PIA22909).mat`.
+```text
+NASA-Hackathon/                 ← Open this folder in Unity Hub
+├─ Assets/
+│  ├─ Shared/                   XR rig, scene flow, narration, launch systems, Mars data
+│  ├─ Opportunity/              Arrival, assembly, launch, landing, legacy, models
+│  ├─ InSight/                  Assembly, launch, mission scenes, models
+│  └─ Ingenuity/                Assembly, launch, models
+├─ Packages/manifest.json       Package dependencies
+└─ ProjectSettings/             Unity version and enabled build scenes
+launch-previews/               Recorded demonstrations and screenshots
+```
 
-## Known harmless errors
+Shared scene-flow components connect scenes by name. Mission-specific controllers manage assembly and science progression. The saved build list includes 14 scenes, including the older title scene; **TitleScreen-Night** is the intended entry point.
 
-- **"The only standalone targets supported are Windows x64 and OSX with OpenXR"**: shows on Linux. The simulator still works
-- **Unity Connect 404 / Project ID request failed**: cloud services link only, doesn't affect the build
+### Detailed implementation guides
+
+- [Opportunity assembly and Quest setup](NASA-Hackathon/Assets/Opportunity/NASA-Headquarters/LastSignalFlashback/README.md)
+- [Opportunity landing and science](NASA-Hackathon/Assets/Opportunity/Landing/README.md)
+- [InSight assembly and mission](NASA-Hackathon/Assets/InSight/NASA-Headquarters/LastSignalFlashback/README.md)
+- [Ingenuity assembly and launch](NASA-Hackathon/Assets/Ingenuity/NASA-Headquarters/LastSignalFlashback/README.md)
+- [Narration setup](NASA-Hackathon/Assets/Shared/Audio/Narration/README.md)
+- [NASA references](NASA-Hackathon/Assets/Shared/Audio/Narration/NASA-Sources.md)
+
+## Assets, credits, and review notes
+
+**Team contributions:** Yarden developed the arrival and legacy storytelling and Mars environment; Gibson developed the assembly facility and interactions and worked on integration, narration, and VR improvements; Dominic developed launch environments, mission selection, and mission variants; Susan developed Opportunity's landing and science activities. The team integrated and iterated on the shared experience.
+
+**External resources:** NASA and NASA/JPL mission pages, NASA 3D Resources, HiRISE terrain, Opportunity imagery, Unity and its package dependencies, ElevenLabs voice synthesis, GitHub, and Vercel. Source citations and credits accompany the relevant guides. Third-party assets and packages retain their own licenses; their presence does not grant redistribution rights beyond those licenses.
+
+**Optional environment pack:** [Mars Landscape 3D by Evgenii Nikolskii](https://assetstore.unity.com/packages/3d/environments/landscapes/mars-landscape-3d-175814) adds terrain textures and rock dressing. Its Asset Store files are not distributed in Git. To reproduce that dressing, acquire the pack through your Unity account, then use **Window → Package Manager → My Assets → Download → Import**. The environment builder supports generated fallback textures when the pack is unavailable. Do not regenerate scenes solely to start a judging session.
+
+**Troubleshooting:**
+
+- **Wrong Unity version / import errors:** reopen the nested project with 2022.3.62f1 and wait for package import and compilation to finish.
+- **Headset view or controls behave incorrectly:** confirm Link is active and select the Quest Link menu option so the desktop simulator is disabled.
+- **No headset available:** select the desktop XR simulator menu option and use its help overlay.
+- **No narration:** check Game-view mute, device audio output, and clip assignments; Ingenuity's mission narration is incomplete in this checkout. Playing existing clips requires no API key.
+- **Web preview remains at 90%:** use the local Unity route or recorded demonstrations. Browser startup is a known unresolved submission-time issue.
+
+Future work includes completing Ingenuity's surface story and narration, resolving browser startup, and further accessibility and comfort testing with students and varied headsets. The long-term goal is a reusable storytelling format for other spacecraft and scientific hardware left across the solar system.
